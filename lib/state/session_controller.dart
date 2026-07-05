@@ -4,6 +4,10 @@ import 'package:uuid/uuid.dart';
 import '../services/prediction_service.dart';
 import '../services/telemetry_service.dart';
 
+/// Modo del tablero: celdas grandes de palabras (amigable con la mirada) o
+/// teclado de letras (escritura libre).
+enum BoardMode { words, keyboard }
+
 /// Estado de una sesión de comunicación: texto compuesto, sugerencias de la
 /// RNN y configuración de dwell. Coordina predicción y telemetría.
 class SessionController extends ChangeNotifier {
@@ -22,6 +26,15 @@ class SessionController extends ChangeNotifier {
   // Configuración de dwell (permanencia).
   double dwellSeconds = 1.2;
   bool dwellEnabled = true;
+
+  // Tablero por defecto: celdas grandes de palabras (amigable con la mirada).
+  BoardMode boardMode = BoardMode.words;
+
+  void toggleBoardMode() {
+    boardMode =
+        boardMode == BoardMode.words ? BoardMode.keyboard : BoardMode.words;
+    notifyListeners();
+  }
 
   Future<void> start() =>
       _telemetry.log(sessionId: sessionId, eventType: 'session_start');
@@ -58,6 +71,19 @@ class SessionController extends ChangeNotifier {
     text = '';
     suggestions = [];
     notifyListeners();
+  }
+
+  /// Inserta una palabra completa (celda AAC) al texto, con espacio, y refresca
+  /// las sugerencias de la RNN para seguir prediciendo.
+  Future<void> insertWord(String word) async {
+    text = text.isEmpty ? word : '${text.trimRight()} $word';
+    notifyListeners();
+    await _telemetry.log(
+      sessionId: sessionId,
+      eventType: 'selection',
+      selectedWord: word,
+    );
+    await _refreshSuggestions();
   }
 
   Future<void> applySuggestion(String phrase) async {

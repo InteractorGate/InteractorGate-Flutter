@@ -1,0 +1,11 @@
+# Entorno Python del sidecar (se recrea con uv; ver README del sidecar)
+.venv/
+__pycache__/
+*.pyc
+
+# Calibracion especifica del usuario (se regenera con: python main.py --calibrate)
+calibration.json
+
+# Capturas de depuracion (contienen imagen de la persona) — nunca commitear
+_camera_sample.jpg
+_eye_patch.png

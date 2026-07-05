@@ -10,6 +10,7 @@ class DwellKeyboard extends StatelessWidget {
     required this.onSpace,
     required this.onBackspace,
     required this.onClear,
+    required this.onWords,
     this.dwellSeconds = 1.2,
     this.dwellEnabled = true,
   });
@@ -18,6 +19,7 @@ class DwellKeyboard extends StatelessWidget {
   final VoidCallback onSpace;
   final VoidCallback onBackspace;
   final VoidCallback onClear;
+  final VoidCallback onWords;
   final double dwellSeconds;
   final bool dwellEnabled;
 
@@ -61,12 +63,20 @@ class DwellKeyboard extends StatelessWidget {
                 flex: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(4),
+                  child: _key('◀ PALABRAS', onWords,
+                      color: const Color(0xFF264D4D), fontSize: 15),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
                   child: _key('LIMPIAR', onClear,
                       color: const Color(0xFF4D2626), fontSize: 16),
                 ),
               ),
               Expanded(
-                flex: 5,
+                flex: 4,
                 child: Padding(
                   padding: const EdgeInsets.all(4),
                   child: _key('ESPACIO', onSpace, fontSize: 18),
