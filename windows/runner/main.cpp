@@ -25,8 +25,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
-  Win32Window::Point origin(10, 10);
-  Win32Window::Size size(1280, 720);
+  // Ventana reducida, centrada horizontalmente y PEGADA al borde inferior
+  // (sobre la barra de tareas). Usa el area de trabajo para no quedar detras
+  // de la barra de tareas.
+  const int win_w = 900, win_h = 640;
+  RECT work_area;
+  ::SystemParametersInfo(SPI_GETWORKAREA, 0, &work_area, 0);
+  const int area_w = work_area.right - work_area.left;
+  Win32Window::Point origin(
+      work_area.left + (area_w - win_w) / 2,  // centrado en horizontal
+      work_area.bottom - win_h);              // pegado abajo
+  Win32Window::Size size(win_w, win_h);
   if (!window.Create(L"interactor_gate", origin, size)) {
     return EXIT_FAILURE;
   }

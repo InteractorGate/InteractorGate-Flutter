@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/gaze_bridge.dart';
 import '../state/auth_controller.dart';
 import '../state/session_controller.dart';
+import '../widgets/big_cell_board.dart';
 import '../widgets/composed_text_bar.dart';
 import '../widgets/dwell_keyboard.dart';
 import '../widgets/suggestion_bar.dart';
@@ -58,17 +59,26 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: DwellKeyboard(
-                dwellSeconds: session.dwellSeconds,
-                dwellEnabled: session.dwellEnabled,
-                onKey: (ch) {
-                  session.type(ch);
-                  session.logKeySelection(ch);
-                },
-                onSpace: session.space,
-                onBackspace: session.backspace,
-                onClear: session.clear,
-              ),
+              child: session.boardMode == BoardMode.words
+                  ? BigCellBoard(
+                      dwellSeconds: session.dwellSeconds,
+                      dwellEnabled: session.dwellEnabled,
+                      onWord: session.insertWord,
+                      onKeyboard: session.toggleBoardMode,
+                      onBackspace: session.backspace,
+                    )
+                  : DwellKeyboard(
+                      dwellSeconds: session.dwellSeconds,
+                      dwellEnabled: session.dwellEnabled,
+                      onKey: (ch) {
+                        session.type(ch);
+                        session.logKeySelection(ch);
+                      },
+                      onSpace: session.space,
+                      onBackspace: session.backspace,
+                      onClear: session.clear,
+                      onWords: session.toggleBoardMode,
+                    ),
             ),
           ],
         ),
