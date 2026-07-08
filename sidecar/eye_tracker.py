@@ -7,6 +7,7 @@ calibracion, blink) necesita sale de aqui.
 """
 import math
 import os
+import sys
 from dataclasses import dataclass
 
 import cv2
@@ -15,8 +16,10 @@ import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
 
-_HERE = os.path.dirname(__file__)
-MODEL_PATH = os.path.join(_HERE, "models", "face_landmarker.task")
+# Base de recursos: empaquetado (PyInstaller) los datos van a sys._MEIPASS;
+# en desarrollo, junto a este archivo.
+_BASE = getattr(sys, "_MEIPASS", os.path.dirname(__file__))
+MODEL_PATH = os.path.join(_BASE, "models", "face_landmarker.task")
 
 # Landmarks de FaceLandmarker (478 puntos, incluye iris).
 # Ojo derecho de la imagen (izquierdo del sujeto) e izquierdo de la imagen.

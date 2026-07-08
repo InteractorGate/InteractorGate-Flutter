@@ -1,10 +1,28 @@
 """Constantes compartidas del tracker (referenciadas por gaze_server.py)."""
 import ctypes
 import os
+import sys
 
 import cv2
 
 _HERE = os.path.dirname(__file__)
+
+
+def _user_data_dir():
+    """Carpeta escribible por usuario para datos de la app (calibracion).
+
+    Empaquetado (PyInstaller) el sidecar corre desde Program Files, que es de
+    solo lectura; la calibracion debe ir a %LOCALAPPDATA%\\InteractorGate.
+    En desarrollo se usa el propio directorio del sidecar.
+    """
+    if getattr(sys, "frozen", False):
+        base = os.path.join(
+            os.environ.get("LOCALAPPDATA", os.path.expanduser("~")),
+            "InteractorGate",
+        )
+        os.makedirs(base, exist_ok=True)
+        return base
+    return _HERE
 
 
 def _screen_size():
@@ -37,7 +55,7 @@ GAZE_SMOOTHING = 0.6
 WORK_X = (0.27, 0.73)
 WORK_Y = (0.24, 0.80)
 
-CALIB_FILE = os.path.join(_HERE, "calibration.json")
+CALIB_FILE = os.path.join(_user_data_dir(), "calibration.json")
 # Indice de la webcam. Puede cambiar si se reconecta la camara; overridable por
 # env var IG_CAM_INDEX. (0 tipico; se reenumera a veces al reconectar.)
 CAM_INDEX = int(os.environ.get("IG_CAM_INDEX", 0))

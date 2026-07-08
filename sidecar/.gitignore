@@ -3,6 +3,10 @@
 __pycache__/
 *.pyc
 
+# Artefactos de empaquetado PyInstaller (se regeneran: PyInstaller gaze_service.spec)
+build/
+dist/
+
 # Calibracion especifica del usuario (se regenera con: python main.py --calibrate)
 calibration.json
 

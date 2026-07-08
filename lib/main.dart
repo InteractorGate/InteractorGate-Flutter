@@ -6,6 +6,7 @@ import 'services/api_client.dart';
 import 'services/auth_service.dart';
 import 'services/gaze_bridge.dart';
 import 'services/prediction_service.dart';
+import 'services/sidecar_launcher.dart';
 import 'services/telemetry_service.dart';
 import 'services/token_store.dart';
 import 'state/auth_controller.dart';
@@ -21,6 +22,9 @@ void main() {
   final predictionService = PredictionService(api);
   final telemetryService = TelemetryService(api);
 
+  // --- Sidecar de rastreo ocular (proceso Python): arranca con la app ---
+  final sidecar = SidecarLauncher()..start();
+
   // --- Controladores de estado ---
   final authController = AuthController(authService)..bootstrap();
   final sessionController =
@@ -34,7 +38,46 @@ void main() {
         ChangeNotifierProvider.value(value: sessionController),
         ChangeNotifierProvider.value(value: gazeBridge),
       ],
-      child: const InteractorGateApp(),
+      child: _SidecarLifecycle(
+        sidecar: sidecar,
+        child: const InteractorGateApp(),
+      ),
     ),
   );
+}
+
+/// Mata el sidecar cuando la app se cierra (en Windows los procesos hijo no se
+/// terminan automáticamente al cerrar el padre).
+class _SidecarLifecycle extends StatefulWidget {
+  const _SidecarLifecycle({required this.sidecar, required this.child});
+
+  final SidecarLauncher sidecar;
+  final Widget child;
+
+  @override
+  State<_SidecarLifecycle> createState() => _SidecarLifecycleState();
+}
+
+class _SidecarLifecycleState extends State<_SidecarLifecycle>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) widget.sidecar.stop();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    widget.sidecar.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
