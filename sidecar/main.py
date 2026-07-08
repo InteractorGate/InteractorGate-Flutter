@@ -80,13 +80,29 @@ def run_mouse(duration=45, click_on_blink=True):
     return 0
 
 
+def run_service(click_on_blink=True):
+    """Modo servicio (lo lanza la app de escritorio): si no hay calibracion la
+    ejecuta primero, y luego corre modo Mouse indefinidamente hasta que el
+    proceso sea terminado (al cerrar la app)."""
+    if not load_calibration():
+        print("Sin calibracion: iniciando calibracion inicial...")
+        if run_calibration() is None:
+            print("ERROR: la calibracion no se completo.")
+            return 1
+    return run_mouse(duration=0, click_on_blink=click_on_blink)
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Tracker de mirada InteractorGate")
     ap.add_argument("--calibrate", action="store_true", help="recalibrar y salir")
+    ap.add_argument("--service", action="store_true",
+                    help="modo servicio: calibra si hace falta y corre modo Mouse indefinido")
     ap.add_argument("--duration", type=int, default=45, help="segundos de modo Mouse")
     ap.add_argument("--no-click", action="store_true", help="desactivar clic por parpadeo")
     args = ap.parse_args()
     if args.calibrate:
         run_calibration()
+    elif args.service:
+        run_service(click_on_blink=not args.no_click)
     else:
         run_mouse(duration=args.duration, click_on_blink=not args.no_click)

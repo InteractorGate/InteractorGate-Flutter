@@ -1,118 +1,118 @@
-"""Sidecar de rastreo ocular para el frontend Flutter.
+"""Modo Mirada: publica la mirada por TCP para el frontend Flutter.
 
-Reutiliza el tracker Python existente (repo InteractorGate) y publica la mirada
-ya mapeada a pantalla como líneas JSON sobre un socket TCP local:
+Reutiliza los modulos locales del sidecar (los mismos que usa main.py en modo
+Mouse) y, en vez de mover el cursor del sistema, emite la mirada ya mapeada a
+pantalla como lineas JSON sobre un socket TCP local:
 
     {"x": 0.42, "y": 0.71, "blink": false}\n
 
-x/y son fracción de pantalla [0..1]. El frontend Flutter (GazeBridge) se conecta
-a 127.0.0.1:8765 y consume ese flujo.
+x/y son fraccion de pantalla [0..1] (lo que devuelve GazeMapper.transform). El
+frontend Flutter (GazeBridge, lib/services/gaze_bridge.dart) se conecta a
+127.0.0.1:8765, consume ese flujo y muestra el chip "Mirada". El cursor del SO
+queda libre (a diferencia del modo Mouse).
 
 Uso:
-    # 1) Ten una calibración hecha en el repo del tracker (python main.py --calibrate)
-    # 2) Ejecuta este sidecar apuntando a ese repo:
-    set IG_TRACKER_REPO=C:\\Users\\LIAN\\Documents\\InteractorGate
-    python sidecar/gaze_server.py
+    # 1) Calibrar una vez (genera calibration.json en este directorio):
+    .venv/Scripts/python.exe main.py --calibrate
+    # 2) Levantar el server (antes de abrir la app Flutter):
+    .venv/Scripts/python.exe gaze_server.py
 
-Requiere las mismas dependencias que el tracker (mediapipe, opencv, numpy).
+Requiere las mismas dependencias que el tracker (mediapipe, opencv, numpy) y una
+calibracion previa. Detener con Ctrl+C.
 """
-
 import json
-import os
 import socket
-import sys
+import time
+
+import config
+from blink_detector import BlinkDetector
+from calibration import GazeMapper, load_calibration
+from eye_tracker import EyeTracker, feature_vector
+from smoothing import GazeSmoother2D
 
 HOST = "127.0.0.1"
 PORT = 8765
 
-# Ruta al repo del tracker Python. Ajusta por env var IG_TRACKER_REPO si difiere.
-TRACKER_REPO = os.environ.get(
-    "IG_TRACKER_REPO",
-    r"C:\Users\LIAN\Documents\InteractorGate",
-)
 
-
-def _bootstrap_tracker():
-    """Carga el tracker existente y la calibración guardada."""
-    if not os.path.isdir(TRACKER_REPO):
-        raise SystemExit(f"No existe el repo del tracker: {TRACKER_REPO}")
-
-    sys.path.insert(0, TRACKER_REPO)
-    # La calibración se guarda con ruta relativa; trabajar desde el repo.
-    os.chdir(TRACKER_REPO)
-
-    import calibration
-    import config
-    from camera import Camera
-    from eye_tracker import EyeTracker
-    from blink_detector import BlinkDetector
-
-    saved = calibration.load_calibration()
-    if saved is None:
+def _bootstrap():
+    """Carga la calibracion y prepara camara + tracker (una sola vez)."""
+    saved = load_calibration()
+    if not saved:
         raise SystemExit(
-            "No hay calibración. Corre 'python main.py --calibrate' en el tracker."
+            "No hay calibracion. Corre: python main.py --calibrate"
         )
-
-    mapper = calibration.GazeMapper.from_dict(saved["gaze"])
+    mapper = GazeMapper.from_dict(saved["gaze"])
     config.BLINK_THRESHOLD = saved.get("blink_threshold", config.BLINK_THRESHOLD)
 
-    return {
-        "config": config,
-        "camera": Camera(),
-        "tracker": EyeTracker(),
-        "blink": BlinkDetector(),
-        "mapper": mapper,
-    }
+    cap = config.open_camera()
+    if not cap.isOpened():
+        raise SystemExit("ERROR: webcam no disponible")
+    for _ in range(15):          # descartar frames iniciales (autoexposicion)
+        cap.read()
+
+    return {"cap": cap, "tracker": EyeTracker(), "mapper": mapper}
 
 
 def _stream(conn, ctx):
-    config = ctx["config"]
-    camera = ctx["camera"]
-    tracker = ctx["tracker"]
-    blink = ctx["blink"]
-    mapper = ctx["mapper"]
+    """Loop por conexion: mirada -> JSON. Mismo criterio que main.py:run_mouse
+    (parpadeo = clic; con el ojo cerrado se mantiene la ultima posicion)."""
+    cap, tracker, mapper = ctx["cap"], ctx["tracker"], ctx["mapper"]
+    blink = BlinkDetector(threshold=config.BLINK_THRESHOLD)
+    smoother = GazeSmoother2D(mincutoff=0.5, beta=0.008)
 
+    ts = 0
+    last_x, last_y = 0.5, 0.5     # centro hasta tener una muestra valida
     while True:
-        frame = camera.get_frame()
-        if frame is None:
-            break
-
-        raw = tracker.get_raw_gaze(frame)
-        if raw is None:
+        ok, frame = cap.read()
+        if not ok:
+            continue
+        ts += 33
+        res = tracker.process(frame, ts)
+        if res is None:
             continue
 
-        sx, sy = mapper.transform(raw.norm_x, raw.norm_y, raw.yaw, raw.pitch)
-        blinked = blink.detect(raw.eye_ratio)
+        # El parpadeo se evalua siempre (dispara el "clic" en Flutter).
+        openness = (res.right.openness + res.left.openness) / 2
+        blinked = blink.detect(openness)
+
+        # La mirada solo es valida con el ojo abierto: si esta (casi) cerrado se
+        # mantiene la ultima posicion para que el parpadeo no dispare el punto.
+        if openness >= config.OPEN_GAZE_THRESHOLD:
+            gx, gy = mapper.transform(feature_vector(res))
+            last_x, last_y = smoother.update(gx, gy, time.time())
 
         payload = {
-            "x": round(sx / config.SCREEN_WIDTH, 4),
-            "y": round(sy / config.SCREEN_HEIGHT, 4),
+            "x": round(float(last_x), 4),
+            "y": round(float(last_y), 4),
             "blink": bool(blinked),
         }
         conn.sendall((json.dumps(payload) + "\n").encode("utf-8"))
 
 
 def main():
-    ctx = _bootstrap_tracker()
+    ctx = _bootstrap()
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+            server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server.bind((HOST, PORT))
+            server.listen(1)
+            print(f"[gaze_server] escuchando en {HOST}:{PORT} - esperando a Flutter...")
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
-        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind((HOST, PORT))
-        server.listen(1)
-        print(f"[gaze_server] escuchando en {HOST}:{PORT} — esperando a Flutter…")
-
-        while True:
-            conn, addr = server.accept()
-            print(f"[gaze_server] cliente conectado: {addr}")
-            try:
-                with conn:
-                    _stream(conn, ctx)
-            except (ConnectionResetError, BrokenPipeError):
-                print("[gaze_server] cliente desconectado.")
-            finally:
-                print("[gaze_server] esperando nueva conexión…")
-
-    # Nunca se alcanza; el tracker libera la cámara al terminar el proceso.
+            while True:
+                conn, addr = server.accept()
+                print(f"[gaze_server] cliente conectado: {addr}")
+                try:
+                    with conn:
+                        _stream(conn, ctx)
+                except (ConnectionResetError, BrokenPipeError, OSError):
+                    print("[gaze_server] cliente desconectado.")
+                finally:
+                    print("[gaze_server] esperando nueva conexion...")
+    except KeyboardInterrupt:
+        print("\n[gaze_server] detenido.")
+    finally:
+        ctx["cap"].release()
+        ctx["tracker"].close()
 
 
 if __name__ == "__main__":

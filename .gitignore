@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Instalador (Inno Setup) — el .exe generado se regenera con ISCC
+/installer/Output/
