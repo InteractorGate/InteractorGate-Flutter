@@ -1,0 +1,8 @@
+# Dependencias de runtime del sidecar de mirada (Python 3.12).
+# Versiones fijadas para reproducir el build (local y CI). MediaPipe no tiene
+# wheels para 3.13, por eso el sidecar usa 3.12. PyInstaller se instala aparte
+# (dependencia solo de empaquetado).
+mediapipe==0.10.35
+opencv-python==5.0.0.93
+numpy==2.5.1
+onnxruntime==1.27.0

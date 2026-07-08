@@ -1,0 +1,88 @@
+name: Build & Release
+
+# Se dispara al hacer merge a main (p. ej. un PR de develop -> main) y tambien
+# manualmente. Construye la app Flutter + el sidecar (PyInstaller) + el
+# instalador (Inno Setup) y publica un GitHub Release con el .exe.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # necesario para crear/actualizar releases
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Leer version del pubspec
+        id: ver
+        shell: bash
+        run: echo "version=$(grep '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//; s/+.*//')" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter deps
+        run: |
+          flutter config --enable-windows-desktop
+          flutter pub get
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar deps del sidecar + PyInstaller
+        working-directory: sidecar
+        run: pip install -r requirements.txt pyinstaller==6.21.0
+
+      - name: Build sidecar (PyInstaller)
+        working-directory: sidecar
+        run: python -m PyInstaller gaze_service.spec --noconfirm
+
+      - name: Build Flutter Windows (release)
+        run: flutter build windows --release
+
+      - name: Integrar sidecar en el Release
+        shell: pwsh
+        run: |
+          $rel = "build/windows/x64/runner/Release"
+          Remove-Item -Recurse -Force "$rel/gaze" -ErrorAction SilentlyContinue
+          Copy-Item -Recurse "sidecar/dist/gaze_service" "$rel/gaze"
+
+      - name: Instalar Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Compilar instalador
+        shell: pwsh
+        run: >
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          "/DMyAppVersion=${{ steps.ver.outputs.version }}"
+          "installer\InteractorGate.iss"
+
+      - name: Publicar release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: InteractorGate v${{ steps.ver.outputs.version }}
+          files: installer/Output/InteractorGate-Setup.exe
+          fail_on_unmatched_files: true
+          body: |
+            App de escritorio Windows de comunicacion aumentativa (AAC) por mirada + prediccion de texto.
+
+            **Descargar** `InteractorGate-Setup.exe` (Assets) y ejecutar.
+            > Al no estar firmado, Windows puede mostrar "Windows protegio tu PC": **Mas informacion -> Ejecutar de todos modos**.
+
+            **Requisitos:** Windows 10/11 (64-bit), webcam, internet.
+            **Primer uso:** calibracion (mirar los puntos) -> tablero. El cursor sigue la mirada; parpadear = clic.
