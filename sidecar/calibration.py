@@ -16,29 +16,39 @@ import cv2
 import numpy as np
 
 import config
+import geometria
 from eye_tracker import (FEATURES_VERSION, EyeTracker, feature_vector,
                          head_translation)
 
-# Rejilla 4x4, estrecha en los DOS ejes y por el mismo motivo. Un rango amplio da
-# mas recorrido de senal, pero a partir de cierto angulo deja de compensar: el
-# iris se desplaza como el SENO del angulo de mirada y el punto de pantalla
-# necesita la TANGENTE, y esas dos curvas solo se parecen cerca del centro. A
-# 36 cm de la pantalla las columnas en 0.08 y 0.92 caen a +-36 grados, donde ya
-# no se parecen en nada (y ademas el cuello empieza a ayudar). Medido el
-# 2026-09-06: con la rejilla ancha el error horizontal se quedaba en 122 px con
-# 102 de margen. El tablero de la app solo ocupa 0.27-0.73, asi que 0.18-0.82 lo
-# cubre de sobra.
-GX = [0.18, 0.39, 0.61, 0.82]
-# El vertical NO puede abrirse tanto como el horizontal. El recorrido comodo del
-# ojo hacia arriba y abajo es la mitad que a los lados, asi que a ~40 cm de la
-# pantalla las filas en 0.08 y 0.92 caen a +-19 grados y el cuello acaba haciendo
-# el trabajo. Medido tres veces el 2026-09-06: la cabeza se movia 5 cm en
-# vertical, correlacionaba -0.97 con la fila pedida, y la senal ocular vertical
-# se quedaba en 0.04 de correlacion. Con la rejilla estrecha el ojo llega solo.
-# 0.20-0.80 cubre de sobra la zona de trabajo de la app (WORK_Y = 0.24-0.80).
-GY = [0.20, 0.40, 0.60, 0.80]
+# La rejilla se deriva de DONDE ESTA EL TABLERO de la app (geometria.py), no de
+# constantes fijas. Calibrar en un sitio y usar el tablero en otro fue el fallo
+# del 2026-09-06: la calibracion cubria la banda central (0.20-0.80 de pantalla)
+# y el tablero vive en 0.63-0.94, porque la ventana esta anclada abajo. La mitad
+# inferior del tablero quedaba fuera de la zona ajustada, el modelo extrapolaba
+# justo donde tenia que acertar y aparecia un sesgo vertical de 94 px: 9 de los
+# 12 fallos de una corrida de 32 ensayos. Derivandola no puede volver a
+# desalinearse, y si algun dia se mueve la ventana la calibracion la sigue sola.
+#
+# Sobre el rango: un recorrido amplio da mas senal, pero a partir de cierto
+# angulo deja de compensar porque el iris se desplaza como el SENO del angulo de
+# mirada y el punto de pantalla necesita la TANGENTE, y esas dos curvas solo se
+# parecen cerca del centro. Ajustarse al tablero resuelve las dos cosas a la vez.
+GX, GY = geometria.rejilla(4)
 CALIB_POINTS = [(x, y) for y in GY for x in GX]
-VERIFY_POINTS = [(0.25, 0.25), (0.75, 0.25), (0.5, 0.5), (0.25, 0.75), (0.75, 0.75)]
+
+_ZX0, _ZY0, _ZX1, _ZY1 = geometria.zona_calibracion()
+
+
+def _punto(fx, fy):
+    """Punto dentro de la zona de calibracion, en fraccion de la propia zona."""
+    return (round(_ZX0 + (_ZX1 - _ZX0) * fx, 4),
+            round(_ZY0 + (_ZY1 - _ZY0) * fy, 4))
+
+
+# Verificacion en puntos que NO son los del ajuste, pero dentro de la misma zona:
+# medir sobre los mismos puntos con los que se ajusto no diria nada.
+VERIFY_POINTS = [_punto(0.2, 0.2), _punto(0.8, 0.2), _punto(0.5, 0.5),
+                 _punto(0.2, 0.8), _punto(0.8, 0.8)]
 
 # Los puntos se presentan en ORDEN ALEATORIO, y no es un detalle: recorriendo la
 # rejilla fila por fila, la coordenada Y del objetivo queda perfectamente

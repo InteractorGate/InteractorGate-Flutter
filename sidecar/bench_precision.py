@@ -38,6 +38,7 @@ import cv2
 import numpy as np
 
 import config
+import geometria
 from calibration import GazeMapper, load_calibration
 from eye_tracker import EyeTracker, feature_vector, head_translation
 from smoothing import GazeSmoother2D
@@ -69,41 +70,12 @@ SETTLE_S = 1.2        # transicion sacadica: se descarta
 CAPTURE_S = 1.2       # ventana de fijacion: se mide
 DWELL_S = 1.2         # permanencia que exige la app para seleccionar
 
-# Geometria de la app (lib/screens/home_screen.dart + windows/runner/main.cpp).
-WIN_W, WIN_H = 900, 640
-APPBAR_H, PAD, TEXTBAR_H, GAP, SUGG_H = 56, 16, 90, 12, 72
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Geometria: donde esta el tablero en pantalla
-# ─────────────────────────────────────────────────────────────────────────────
-def board_rect_from_running_app():
-    """Rect del tablero leyendo la ventana real de la app, si esta abierta."""
-    user32 = ctypes.windll.user32
-    hwnd = user32.FindWindowW(None, "interactor_gate")
-    if not hwnd:
-        return None
-    rect = wintypes.RECT()
-    if not user32.GetClientRect(hwnd, ctypes.byref(rect)):
-        return None
-    pt = wintypes.POINT(0, 0)
-    user32.ClientToScreen(hwnd, ctypes.byref(pt))
-    cw, ch = rect.right, rect.bottom
-    top = pt.y + APPBAR_H + PAD + TEXTBAR_H + GAP + SUGG_H + GAP
-    return (pt.x + PAD, top, pt.x + cw - PAD, pt.y + ch - PAD)
-
-
-def board_rect_default():
-    """Rect del tablero deducido de la geometria fija de la ventana."""
-    user32 = ctypes.windll.user32
-    area = wintypes.RECT()
-    user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(area), 0)  # SPI_GETWORKAREA
-    ox = area.left + ((area.right - area.left) - WIN_W) // 2
-    oy = area.bottom - WIN_H
-    cx, cy = ox + 1, oy + 31          # borde + barra de titulo
-    cw, ch = WIN_W - 2, WIN_H - 32
-    top = cy + APPBAR_H + PAD + TEXTBAR_H + GAP + SUGG_H + GAP
-    return (cx + PAD, top, cx + cw - PAD, cy + ch - PAD)
+# La geometria del tablero vive en geometria.py, compartida con la calibracion:
+# tienen que coincidir o se calibra en un sitio y se mide en otro (paso el
+# 2026-09-06 y costo un sesgo vertical de 94 px).
+WIN_W, WIN_H = geometria.WIN_W, geometria.WIN_H
+board_rect_from_running_app = geometria.rect_tablero_app_abierta
+board_rect_default = geometria.rect_tablero_nominal
 
 
 def cell_rects(board):
