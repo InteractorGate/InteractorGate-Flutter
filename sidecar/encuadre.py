@@ -34,7 +34,7 @@ import cv2
 import numpy as np
 
 import config
-from calibration import load_calibration
+from calibration import DIST_MAX_CM, DIST_MIN_CM, load_calibration
 from eye_tracker import EyeTracker, head_angles, head_translation
 
 WINDOW = "Encuadre de camara - InteractorGate"
@@ -44,11 +44,15 @@ WINDOW = "Encuadre de camara - InteractorGate"
 # cuadro: es el encuadre natural con la camara a la altura de los ojos.
 OBJ_X, TOL_X = 0.50, 0.08          # fraccion del ancho del encuadre
 OBJ_Y, TOL_Y = 0.45, 0.07          # fraccion del alto del encuadre
-# Distancia entre pupilas en px del encuadre. Con una webcam tipica (~60 grados
-# de campo horizontal) 70 px son unos 50 cm; el rango admitido es ~42-64 cm.
-IPD_OBJ, IPD_MIN, IPD_MAX = 70.0, 55.0, 85.0
 IPD_CM = 6.3                       # distancia interpupilar media de un adulto
-FOCAL_PX = config.CAP_WIDTH / (2 * np.tan(np.radians(60) / 2))   # ~554 px
+# Focal MEDIDA, no supuesta: comparando la distancia interpupilar en px con la z
+# de la matriz de pose sobre 1583 frames (2026-09-06) sale 417 px con sd de 4.
+# Suponer 60 grados de campo daba 554 px y sobrestimaba la distancia un 33 % --
+# la ventana decia 53 cm con el usuario a 39, y aprobaba distancias que no debia.
+# Esta camara tiene 75 grados de campo horizontal. Recalcular para otra webcam:
+#   focal = ipd_px * distancia_cm / 6.3
+FOCAL_PX = 417.0
+IPD_OBJ = IPD_CM * FOCAL_PX / 50.0            # px de ipd a 50 cm, para el recuadro
 ANG_MAX = 10.0                     # grados de giro/cabeceo admitidos
 LUZ_MIN, LUZ_MAX = 80, 215         # brillo medio de la zona de los ojos (0-255)
 CONTRALUZ = 55                     # fondo mas brillante que la cara = contraluz
@@ -127,13 +131,19 @@ def medir(res, gris, historial):
     if len(historial) >= 10:
         jitter = max(statistics.pstdev([p[0] for p in historial]),
                      statistics.pstdev([p[1] for p in historial]))
+    # La distancia sale de la z de la pose, que es metrica y no depende de suponer
+    # ni el campo de la camara ni la distancia interpupilar del usuario. La ipd
+    # queda de respaldo por si no hay matriz de pose en ese frame.
+    head = np.array(head_translation(res.pose_matrix))
+    z = abs(float(head[2]))
     return {
         "cx": cx, "cy": cy, "ipd": ipd,
-        "dist_cm": IPD_CM * FOCAL_PX / ipd if ipd > 1 else float("inf"),
+        "dist_cm": z if z > 1 else (IPD_CM * FOCAL_PX / ipd if ipd > 1
+                                    else float("inf")),
         "px_por_cm": ipd / IPD_CM if ipd > 1 else 0.0,
         "yaw": np.degrees(yaw), "pitch": np.degrees(pitch),
         "luz_cara": cara, "luz_fondo": float(gris.mean()),
-        "jitter": jitter, "head": np.array(head_translation(res.pose_matrix)),
+        "jitter": jitter, "head": head,
     }
 
 
