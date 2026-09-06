@@ -16,7 +16,7 @@ sistema (+ clic al parpadear) para operar el tablero *dwell* de la app.
 ```
 sidecar/
   eye_tracker.py      # MediaPipe FaceLandmarker (Tasks API): rostro/iris/pose ->
-                      #   parche de ojo + features de mirada (12D)
+                      #   parche de ojo + features de mirada (13D, v3)
   calibration.py      # GazeMapper: ridge por eje (X/Y desacoplados) sobre
                       #   features estandarizadas; rutina de calibracion 4x4
   smoothing.py        # Filtro One-Euro (estable al fijar, responsivo al mover)
@@ -32,9 +32,17 @@ sidecar/
   models/             # face_landmarker.task + gaze_cnn.onnx (+ meta)
 ```
 
-**Precisión típica** (webcam, tras calibrar): horizontal ~5%, vertical ~10-13%
-de la pantalla. El vertical es el límite del método (el iris casi no se mueve
-arriba/abajo). Por eso el tablero de la app usa **celdas grandes**.
+**Precisión típica** (webcam, tras calibrar, medida el 2026-09-06 con el vector
+v3): ~4.5% de la pantalla en horizontal y ~7% en vertical, justo en el margen que
+exige el tablero (5.3% / 7.2%). Por eso la app usa **celdas grandes**.
+
+**Lo que más mueve ese número no es el algoritmo, es la postura.** La calibración
+aprende una relación entre el ojo y la pantalla que solo vale desde donde te
+sentaste. Medido con la mirada fija y moviendo solo la cabeza (`diag_deriva.py`):
+con el vector v1 el error vertical subía 1639 px por cada cm de cabeza — el
+tablero tolera 77 px, o sea medio milímetro. El vector v3 lo baja a ~50 px/cm.
+Aun así, **comprueba el encuadre antes de calibrar** (`main.py --encuadre`) y no
+te recoloques entre calibrar y usar.
 
 ## Requisitos y entorno
 

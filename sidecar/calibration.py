@@ -22,7 +22,14 @@ from eye_tracker import (FEATURES_VERSION, EyeTracker, feature_vector,
 # mas fuerte la senal (sobre todo en vertical). La zona central de trabajo se
 # consigue con la VENTANA reducida de la app, no comprimiendo la calibracion.
 GX = [0.08, 0.36, 0.64, 0.92]
-GY = [0.08, 0.36, 0.64, 0.92]
+# El vertical NO puede abrirse tanto como el horizontal. El recorrido comodo del
+# ojo hacia arriba y abajo es la mitad que a los lados, asi que a ~40 cm de la
+# pantalla las filas en 0.08 y 0.92 caen a +-19 grados y el cuello acaba haciendo
+# el trabajo. Medido tres veces el 2026-09-06: la cabeza se movia 5 cm en
+# vertical, correlacionaba -0.97 con la fila pedida, y la senal ocular vertical
+# se quedaba en 0.04 de correlacion. Con la rejilla estrecha el ojo llega solo.
+# 0.20-0.80 cubre de sobra la zona de trabajo de la app (WORK_Y = 0.24-0.80).
+GY = [0.20, 0.40, 0.60, 0.80]
 CALIB_POINTS = [(x, y) for y in GY for x in GX]
 VERIFY_POINTS = [(0.25, 0.25), (0.75, 0.25), (0.5, 0.5), (0.25, 0.75), (0.75, 0.75)]
 
@@ -32,13 +39,26 @@ RIDGE_LAMBDA = 1.0   # fuerza de regularizacion (sobre features estandarizadas)
 WINDOW = "Calibracion InteractorGate"
 
 
-# Indices del feature_vector (12D) por eje, para que el ruido vertical no
-# contamine el horizontal (que es el eje preciso). Las posiciones 4-7 son el iris
-# en el marco del propio ojo (v2); en v1 eran el iris crudo del encuadre.
+# Indices del feature_vector (13D) por eje, para que el ruido vertical no
+# contamine el horizontal (que es el eje preciso).
 #  0 r.h  1 r.v  2 l.h  3 l.v  4 r.offx 5 r.offy 6 l.offx 7 l.offy  8 yaw 9 pitch
-#  10 r.op  11 l.op
-X_IDX = [0, 2, 4, 6, 8]                 # h_ratios + iris_x del ojo + head yaw
-Y_IDX = [1, 3, 5, 7, 9, 10, 11]         # v_ratios + iris_y del ojo + pitch + apertura
+#  10 r.op  11 l.op  12 distancia
+#
+# Elegidos midiendo (analiza_features.py sobre la sesion del 2026-09-06), con el
+# criterio de que aguanten cuando la cabeza se mueve, no de que ajusten bien
+# donde se calibro. Error con la cabeza movida, por variante de eje X:
+#   ratios + distancia    6.9 %   <- elegida
+#   ratios + iris + dist  9.7 %
+#   + yaw                12.3 %   (la pose de cabeza mete postura por la puerta
+#                                  de atras: es lo que se quiere evitar)
+# Y para el eje Y: ratios + iris + distancia da 7.1 % con R2 de postura 0.01,
+# frente a 23.1 % sin la distancia. La apertura del parpado ayuda dentro de la
+# sesion pero empeora al moverse, asi que fuera.
+#
+# ATENCION: elegido sobre UNA sesion de UN usuario. Conviene reconfirmarlo con
+# mas sesiones antes de darlo por definitivo.
+X_IDX = [0, 2, 12]                      # h_ratios + distancia
+Y_IDX = [1, 3, 5, 7, 12]                # v_ratios + iris_y del ojo + distancia
 
 
 def _ridge(Z, y, lam):
