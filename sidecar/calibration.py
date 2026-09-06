@@ -19,10 +19,16 @@ import config
 from eye_tracker import (FEATURES_VERSION, EyeTracker, feature_vector,
                          head_translation)
 
-# Rejilla 4x4. En HORIZONTAL conviene el rango amplio: cuanto mas se mueven los
-# ojos entre puntos, mas fuerte la senal, y el ojo llega de sobra a los lados
-# (correlacion medida entre h_ratio y la columna pedida: 0.94-0.97).
-GX = [0.08, 0.36, 0.64, 0.92]
+# Rejilla 4x4, estrecha en los DOS ejes y por el mismo motivo. Un rango amplio da
+# mas recorrido de senal, pero a partir de cierto angulo deja de compensar: el
+# iris se desplaza como el SENO del angulo de mirada y el punto de pantalla
+# necesita la TANGENTE, y esas dos curvas solo se parecen cerca del centro. A
+# 36 cm de la pantalla las columnas en 0.08 y 0.92 caen a +-36 grados, donde ya
+# no se parecen en nada (y ademas el cuello empieza a ayudar). Medido el
+# 2026-09-06: con la rejilla ancha el error horizontal se quedaba en 122 px con
+# 102 de margen. El tablero de la app solo ocupa 0.27-0.73, asi que 0.18-0.82 lo
+# cubre de sobra.
+GX = [0.18, 0.39, 0.61, 0.82]
 # El vertical NO puede abrirse tanto como el horizontal. El recorrido comodo del
 # ojo hacia arriba y abajo es la mitad que a los lados, asi que a ~40 cm de la
 # pantalla las filas en 0.08 y 0.92 caen a +-19 grados y el cuello acaba haciendo
@@ -343,8 +349,14 @@ def revisa_sesion(feats, targets, heads):
                     f"Seguiste los puntos en {eje} moviendo la CABEZA "
                     f"({rango[j]:.1f} cm). Hay que seguirlos solo con los ojos.")
 
-    cx = max(abs(_corr(F[:, 0], T[:, 0])), abs(_corr(F[:, 2], T[:, 0])))
-    cy = max(abs(_corr(F[:, 1], T[:, 1])), abs(_corr(F[:, 3], T[:, 1])))
+    # Se miran TODAS las features del eje, no solo los ratios. El vertical hay que
+    # juzgarlo por `off_y`: v_ratio se normaliza con la apertura del parpado y
+    # sale plano aunque el ojo se este moviendo perfectamente. Midiendolo con
+    # v_ratio, una sesion buena (off_y a -0.76 de correlacion) se reportaba como
+    # "senal vertical debil, 0.07" -- un falso positivo por mirar el termometro
+    # equivocado.
+    cx = max(abs(_corr(F[:, i], T[:, 0])) for i in OJO_X)
+    cy = max(abs(_corr(F[:, i], T[:, 1])) for i in OJO_Y)
     if cx < CORR_MIRADA_MIN:
         avisos.append(f"Sin senal ocular horizontal (correlacion {cx:.2f}): los ojos "
                       f"no acompanaron a los puntos de izquierda a derecha.")
