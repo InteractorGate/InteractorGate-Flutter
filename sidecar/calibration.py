@@ -19,9 +19,9 @@ import config
 from eye_tracker import (FEATURES_VERSION, EyeTracker, feature_vector,
                          head_translation)
 
-# Rejilla 4x4 en rango AMPLIO: mientras mas se mueven los ojos entre puntos,
-# mas fuerte la senal (sobre todo en vertical). La zona central de trabajo se
-# consigue con la VENTANA reducida de la app, no comprimiendo la calibracion.
+# Rejilla 4x4. En HORIZONTAL conviene el rango amplio: cuanto mas se mueven los
+# ojos entre puntos, mas fuerte la senal, y el ojo llega de sobra a los lados
+# (correlacion medida entre h_ratio y la columna pedida: 0.94-0.97).
 GX = [0.08, 0.36, 0.64, 0.92]
 # El vertical NO puede abrirse tanto como el horizontal. El recorrido comodo del
 # ojo hacia arriba y abajo es la mitad que a los lados, asi que a ~40 cm de la
