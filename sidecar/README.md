@@ -23,7 +23,11 @@ sidecar/
   blink_detector.py   # Parpadeo desde la apertura del ojo (EAR) -> clic
   gaze_cnn.py         # Inferencia ONNX del CNN MPIIGaze (opcional)
   config.py           # Pantalla, indice de camara, umbrales
-  main.py             # Modo Mouse (cursor+clic) y --calibrate
+  main.py             # Modo Mouse (cursor+clic), --encuadre y --calibrate
+  encuadre.py         # Guia de encuadre: camara, postura y coste de moverse
+  diag_deriva.py      # Mide px de error por cm de cabeza (mirada fija)
+  analiza_features.py # Compara juegos de features offline sobre la calibracion
+  bench_precision.py  # Validacion de precision con el tablero real (OE4)
   gaze_server.py      # Modo Mirada (TCP a Flutter) — PENDIENTE de actualizar
   models/             # face_landmarker.task + gaze_cnn.onnx (+ meta)
 ```
@@ -50,6 +54,9 @@ Modelos en `models/`: `face_landmarker.task` (MediaPipe) y `gaze_cnn.onnx`
 
 ```powershell
 cd sidecar
+# 0) Comprobar camara y postura ANTES de calibrar (ventana con checklist en vivo)
+.\.venv\Scripts\python.exe main.py --encuadre
+
 # 1) Calibrar (mira los puntos rojos a pantalla completa). Guarda calibration.json
 .\.venv\Scripts\python.exe main.py --calibrate
 
@@ -69,9 +76,16 @@ celdas grandes por *dwell* (posar la mirada) y/o parpadeo.
   (evita que un parpadeo dispare el cursor).
 
 ## Consejos de precisión
-- Webcam **centrada y a la altura de los ojos**; buena luz de frente.
+- Webcam **centrada y a la altura de los ojos**; buena luz de frente. `main.py
+  --encuadre` lo comprueba y dice qué corregir, en vez de dejarlo al ojo.
 - Cierra apps que usen la cámara (OBS/Zoom/Teams) antes de calibrar.
 - Recalibra si mueves la cámara o cambian mucho las condiciones de luz.
+- **La postura importa más de lo que parece.** El mapeo apoya parte de su peso
+  en la posición del iris dentro del encuadre, así que moverse unos centímetros
+  respecto a como se calibró desplaza la estimación cientos de píxeles. La
+  ventana de encuadre calcula ese coste con los coeficientes de tu propia
+  calibración y muestra el margen real antes de fallar de celda. Ver
+  `diag_deriva.py` y `analiza_features.py`.
 
 ## Pendiente
 - `gaze_server.py` (modo Mirada / TCP → chip "Mirada" en Flutter) aún usa la API

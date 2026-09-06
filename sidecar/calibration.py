@@ -138,6 +138,8 @@ def run_calibration():
     _fullscreen_window()
 
     print("Calibracion: mira cada punto rojo hasta que cambie.")
+    print("(La postura que tengas AHORA es la que habra que reproducir "
+          "despues; comprobala con main.py --encuadre.)")
     feats, targets, ts, heads = _collect(cap, tracker, CALIB_POINTS, 0)
     if len(feats) < 40:
         print(f"ERROR: muy pocas muestras ({len(feats)}). Rostro no detectado?")

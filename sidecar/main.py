@@ -5,6 +5,7 @@ suavizado; un parpadeo hace clic izquierdo. Asi cualquier app (incluido el
 tablero dwell de Flutter) responde a los ojos.
 
 Uso:
+    .venv/Scripts/python.exe main.py --encuadre      # guia de encuadre de camara
     .venv/Scripts/python.exe main.py --calibrate     # (re)calibrar
     .venv/Scripts/python.exe main.py                 # modo Mouse (45s por defecto)
     .venv/Scripts/python.exe main.py --duration 60   # duracion en segundos
@@ -19,6 +20,7 @@ import cv2
 import config
 from blink_detector import BlinkDetector
 from calibration import GazeMapper, load_calibration, run_calibration
+from encuadre import run_encuadre
 from eye_tracker import EyeTracker, feature_vector
 from smoothing import GazeSmoother2D
 
@@ -94,13 +96,17 @@ def run_service(click_on_blink=True):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Tracker de mirada InteractorGate")
+    ap.add_argument("--encuadre", action="store_true",
+                    help="guia de encuadre: comprueba camara y postura antes de calibrar")
     ap.add_argument("--calibrate", action="store_true", help="recalibrar y salir")
     ap.add_argument("--service", action="store_true",
                     help="modo servicio: calibra si hace falta y corre modo Mouse indefinido")
     ap.add_argument("--duration", type=int, default=45, help="segundos de modo Mouse")
     ap.add_argument("--no-click", action="store_true", help="desactivar clic por parpadeo")
     args = ap.parse_args()
-    if args.calibrate:
+    if args.encuadre:
+        run_encuadre()
+    elif args.calibrate:
         run_calibration()
     elif args.service:
         run_service(click_on_blink=not args.no_click)
