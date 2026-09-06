@@ -13,3 +13,7 @@ calibration.json
 # Capturas de depuracion (contienen imagen de la persona) — nunca commitear
 _camera_sample.jpg
 _eye_patch.png
+
+# Salidas de medida y copias de calibracion (se regeneran)
+resultados_precision.json
+calibration.backup-*.json
