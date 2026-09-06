@@ -1,14 +1,15 @@
 """Calibracion por usuario: aprende el mapeo mirada->pantalla.
 
-`GazeMapper` estandariza el vector de features de mirada (iris relativo + iris
-crudo + pose de cabeza) y ajusta una regresion **ridge** (regularizada) hacia el
-punto de pantalla normalizado [0..1]. Se calibra mirando una rejilla de puntos a
-pantalla completa.
+`GazeMapper` estandariza el vector de features de mirada (iris en el marco del
+propio ojo + distancia a la camara) y ajusta una regresion **ridge**
+(regularizada) hacia el punto de pantalla normalizado [0..1]. Se calibra mirando
+una rejilla 4x4 de puntos, presentados en orden aleatorio.
 
 Uso:
     .venv/Scripts/python.exe calibration.py            # calibra + verifica + guarda
 """
 import json
+import random
 import time
 
 import cv2
@@ -32,6 +33,17 @@ GX = [0.08, 0.36, 0.64, 0.92]
 GY = [0.20, 0.40, 0.60, 0.80]
 CALIB_POINTS = [(x, y) for y in GY for x in GX]
 VERIFY_POINTS = [(0.25, 0.25), (0.75, 0.25), (0.5, 0.5), (0.25, 0.75), (0.75, 0.75)]
+
+# Los puntos se presentan en ORDEN ALEATORIO, y no es un detalle: recorriendo la
+# rejilla fila por fila, la coordenada Y del objetivo queda perfectamente
+# correlacionada con el TIEMPO. Entonces cualquier cosa que derive durante la
+# sesion -- que el usuario se eche atras, que la cabeza baje poco a poco -- entra
+# en el ajuste como si fuera senal de mirada vertical. Medido el 2026-09-06 con
+# la rejilla ordenada: la distancia correlacionaba +0.34 con la fila pedida y la
+# altura de la cabeza -0.39, sin tener nada que ver con la mirada. Como la
+# verificacion tambien iba ordenada, reproducia el mismo artefacto y devolvia un
+# error enganosamente bueno (6.9 % en Y) que el benchmark, que si aleatoriza,
+# desmentia (8.3 % de acierto). Aleatorizar rompe esa correlacion.
 
 FIXATE_S = 1.4       # tiempo para llegar al punto y estabilizar la mirada
 CAPTURE_S = 1.0      # tiempo capturando features por punto
@@ -80,7 +92,7 @@ class GazeMapper:
         self.coef_y = np.asarray(coef_y) if coef_y is not None else None
 
     def fit(self, features, targets, lam=RIDGE_LAMBDA):
-        X = np.asarray(features, dtype=np.float64)                 # (N, 12)
+        X = np.asarray(features, dtype=np.float64)                 # (N, 13)
         T = np.asarray(targets, dtype=np.float64)                  # (N, 2)
         self.mean = X.mean(axis=0)
         self.std = X.std(axis=0) + 1e-8
@@ -124,10 +136,13 @@ def _draw_target(nx, ny, label=""):
 
 
 def _collect(cap, tracker, points, ts0):
-    """Muestra cada punto, descarta la transicion y captura features al fijar.
+    """Muestra cada punto EN ORDEN ALEATORIO, descarta la transicion y captura
+    features al fijar (ver la nota sobre el orden junto a CALIB_POINTS).
 
     Devuelve tambien la traslacion de cabeza de cada muestra: es lo que permite
     saber, mas tarde, desde que postura se calibro."""
+    points = list(points)
+    random.shuffle(points)
     feats, targets, heads = [], [], []
     ts = ts0
     for k, (nx, ny) in enumerate(points):
