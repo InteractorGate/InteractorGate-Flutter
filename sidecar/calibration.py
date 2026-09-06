@@ -46,31 +46,53 @@ VERIFY_POINTS = [(0.25, 0.25), (0.75, 0.25), (0.5, 0.5), (0.25, 0.75), (0.75, 0.
 # desmentia (8.3 % de acierto). Aleatorizar rompe esa correlacion.
 
 FIXATE_S = 1.4       # tiempo para llegar al punto y estabilizar la mirada
-CAPTURE_S = 1.0      # tiempo capturando features por punto
+CAPTURE_S = 1.0      # tiempo capturando con la cabeza quieta
+MOVIMIENTO_S = 1.0   # ...y capturando mientras la cabeza se mueve (ver _collect)
 RIDGE_LAMBDA = 1.0   # fuerza de regularizacion (sobre features estandarizadas)
 WINDOW = "Calibracion InteractorGate"
 
 
-# Indices del feature_vector (13D) por eje, para que el ruido vertical no
-# contamine el horizontal (que es el eje preciso).
+# Indices del feature_vector (15D):
 #  0 r.h  1 r.v  2 l.h  3 l.v  4 r.offx 5 r.offy 6 l.offx 7 l.offy  8 yaw 9 pitch
-#  10 r.op  11 l.op  12 distancia
-#
-# Elegidos midiendo (analiza_features.py sobre la sesion del 2026-09-06), con el
-# criterio de que aguanten cuando la cabeza se mueve, no de que ajusten bien
-# donde se calibro. Error con la cabeza movida, por variante de eje X:
-#   ratios + distancia    6.9 %   <- elegida
-#   ratios + iris + dist  9.7 %
-#   + yaw                12.3 %   (la pose de cabeza mete postura por la puerta
-#                                  de atras: es lo que se quiere evitar)
-# Y para el eje Y: ratios + iris + distancia da 7.1 % con R2 de postura 0.01,
-# frente a 23.1 % sin la distancia. La apertura del parpado ayuda dentro de la
-# sesion pero empeora al moverse, asi que fuera.
-#
-# ATENCION: elegido sobre UNA sesion de UN usuario. Conviene reconfirmarlo con
-# mas sesiones antes de darlo por definitivo.
-X_IDX = [0, 2, 12]                      # h_ratios + distancia
-Y_IDX = [1, 3, 5, 7, 12]                # v_ratios + iris_y del ojo + distancia
+#  10 r.op  11 l.op  12 head_x  13 head_y  14 head_z   (posicion en cm)
+OJO_X = [0, 2, 4, 6]                    # h_ratios + iris_x en el marco del ojo
+OJO_Y = [1, 3, 5, 7]                    # v_ratios + iris_y en el marco del ojo
+
+
+def terminos(F):
+    """Matrices de diseno (una por eje) con la FORMA que dicta la geometria.
+
+    Donde miras en la pantalla no es una funcion del ojo a secas: es donde esta
+    tu cabeza MAS hacia donde apunta el ojo desde ahi.
+
+        X = head_x + distancia * tan(angulo_horizontal_del_ojo)
+        Y = head_y + distancia * tan(angulo_vertical_del_ojo)
+
+    La posicion de la cabeza SUMA y la distancia MULTIPLICA al angulo. Dandole
+    esos terminos al ajuste, moverse deja de ser un problema y pasa a ser un dato
+    mas: la calibracion aprende el ojo en vez de aprender la postura. Hasta la
+    v3 el modelo era plano (una combinacion lineal de features sueltas), asi que
+    solo valia desde la silla donde te habias sentado a calibrar.
+
+    Esto importa mas por el usuario final que por las pruebas: la app es para
+    personas con discapacidad motora, que pueden tener movimiento de cabeza
+    involuntario. "Quedate quieto" no es una instruccion aceptable ahi.
+
+    Sobre una simulacion con la geometria real, calibrando con la cabeza quieta y
+    evaluando con ella movida 3 cm en lateral, 3 en vertical y 8 en profundidad a
+    la vez: el modelo plano se va a 13.4 % / 36.4 % de error y este se queda en
+    1.2 % / 2.4 %. La simulacion valida el algebra, no la realidad; el numero de
+    verdad sale de una sesion.
+
+    Fuera quedan yaw/pitch (la rotacion de la cabeza) y la apertura del parpado:
+    medidos sobre datos reales empeoraban al moverse. Se pueden volver a probar
+    con analiza_features.py cuando haya varias sesiones.
+    """
+    F = np.atleast_2d(np.asarray(F, dtype=np.float64))
+    z = np.abs(F[:, 14:15])                       # distancia a la camara (cm)
+    ax = np.hstack([F[:, 12:13], z * F[:, OJO_X], z])
+    ay = np.hstack([F[:, 13:14], z * F[:, OJO_Y], z])
+    return ax, ay
 
 
 def _ridge(Z, y, lam):
@@ -86,29 +108,40 @@ class GazeMapper:
     independientes (uno por eje) sobre features estandarizadas."""
 
     def __init__(self, mean=None, std=None, coef_x=None, coef_y=None):
-        self.mean = np.asarray(mean) if mean is not None else None
-        self.std = np.asarray(std) if std is not None else None
+        # mean/std son un par [eje X, eje Y]: cada eje tiene sus propios terminos.
+        self.mean = [np.asarray(m) for m in mean] if mean is not None else None
+        self.std = [np.asarray(s) for s in std] if std is not None else None
         self.coef_x = np.asarray(coef_x) if coef_x is not None else None
         self.coef_y = np.asarray(coef_y) if coef_y is not None else None
 
     def fit(self, features, targets, lam=RIDGE_LAMBDA):
-        X = np.asarray(features, dtype=np.float64)                 # (N, 13)
         T = np.asarray(targets, dtype=np.float64)                  # (N, 2)
-        self.mean = X.mean(axis=0)
-        self.std = X.std(axis=0) + 1e-8
-        Z = (X - self.mean) / self.std
-        self.coef_x = _ridge(Z[:, X_IDX], T[:, 0], lam)
-        self.coef_y = _ridge(Z[:, Y_IDX], T[:, 1], lam)
+        ax, ay = terminos(features)
+        # Cada eje tiene sus propios terminos, asi que tambien su propia
+        # estandarizacion.
+        self.mean = [ax.mean(axis=0), ay.mean(axis=0)]
+        self.std = [ax.std(axis=0) + 1e-8, ay.std(axis=0) + 1e-8]
+        self.coef_x = _ridge((ax - self.mean[0]) / self.std[0], T[:, 0], lam)
+        self.coef_y = _ridge((ay - self.mean[1]) / self.std[1], T[:, 1], lam)
         return self
 
-    def transform(self, feature_vec):
-        z = (np.asarray(feature_vec, dtype=np.float64) - self.mean) / self.std
-        x = np.append(z[X_IDX], 1.0) @ self.coef_x
-        y = np.append(z[Y_IDX], 1.0) @ self.coef_y
+    def transform(self, feature_vec, recorta=True):
+        """Punto de pantalla normalizado. `recorta=False` devuelve el valor
+        crudo, sin sujetarlo a [0,1]: hace falta para diagnosticar, porque una
+        prediccion saturada contra el borde esconde cuanto se ha ido de verdad
+        (el 2026-09-06 el eje Y llegaba a 4.62 y el recorte lo disimulaba)."""
+        ax, ay = terminos(feature_vec)
+        zx = (ax[0] - self.mean[0]) / self.std[0]
+        zy = (ay[0] - self.mean[1]) / self.std[1]
+        x = np.append(zx, 1.0) @ self.coef_x
+        y = np.append(zy, 1.0) @ self.coef_y
+        if not recorta:
+            return float(x), float(y)
         return float(np.clip(x, 0, 1)), float(np.clip(y, 0, 1))
 
     def to_dict(self):
-        return {"mean": self.mean.tolist(), "std": self.std.tolist(),
+        return {"mean": [m.tolist() for m in self.mean],
+                "std": [s.tolist() for s in self.std],
                 "coef_x": self.coef_x.tolist(), "coef_y": self.coef_y.tolist()}
 
     @classmethod
@@ -151,17 +184,26 @@ def _collect(cap, tracker, points, ts0):
         while time.time() < t_fix:
             cap.read()
             cv2.waitKey(1)
-        t_end = time.time() + CAPTURE_S
-        while time.time() < t_end:
-            ok, frame = cap.read()
-            if not ok:
-                continue
-            ts += 33
-            res = tracker.process(frame, ts)
-            if res is not None:
-                feats.append(feature_vector(res))
-                targets.append((nx, ny))
-                heads.append(head_translation(res.pose_matrix))
+        # Dos ventanas por punto: quieto y moviendose. La segunda no es un
+        # capricho -- el modelo geometrico necesita ver la MISMA mirada desde
+        # posturas distintas para poder separar "movio el ojo" de "movio la
+        # cabeza". Sin variacion de postura esa correccion no se puede estimar.
+        for etiqueta, dur in ((None, CAPTURE_S),
+                              ("Sigue mirando el punto y muevete un poco",
+                               MOVIMIENTO_S)):
+            if etiqueta:
+                _draw_target(nx, ny, etiqueta)
+            t_end = time.time() + dur
+            while time.time() < t_end:
+                ok, frame = cap.read()
+                if not ok:
+                    continue
+                ts += 33
+                res = tracker.process(frame, ts)
+                if res is not None:
+                    feats.append(feature_vector(res))
+                    targets.append((nx, ny))
+                    heads.append(head_translation(res.pose_matrix))
     return feats, targets, ts, heads
 
 
@@ -236,14 +278,21 @@ def run_calibration():
 
 # ── Revision de la sesion ────────────────────────────────────────────────────
 # Una calibracion puede salir mal por como se hizo la sesion, no por el ajuste:
-# si la cabeza se pasea, si se sigue a los puntos con el cuello en vez de con los
-# ojos, o si uno se sienta tan cerca que las columnas extremas caen fuera del
-# alcance ocular. Eso no se ve en el error de verificacion (que puede salir
-# "regular" por muchos motivos) pero si en las muestras crudas. Medido el
-# 2026-09-06: una sesion a 37 cm con 11.7 cm de vaiven lateral dio 46 % de error
-# y CERO correlacion entre los ojos y el objetivo horizontal.
+# si se sigue a los puntos con el cuello en vez de con los ojos, o si uno se
+# sienta tan cerca que las columnas extremas caen fuera del alcance ocular. Eso
+# no se ve en el error de verificacion (que puede salir "regular" por muchos
+# motivos) pero si en las muestras crudas. Medido el 2026-09-06: una sesion a
+# 37 cm dio 46 % de error y CERO correlacion entre los ojos y el objetivo
+# horizontal, porque el cuello estaba haciendo el trabajo.
+#
+# OJO con el cambio de criterio en v4: que la cabeza se MUEVA ya no es un
+# defecto, es lo que el modelo geometrico necesita para aprender la correccion.
+# Lo que sigue siendo un defecto es que la cabeza se mueva SIGUIENDO a los
+# puntos, porque entonces el movimiento esta correlacionado con el objetivo y el
+# ajuste no puede distinguir una cosa de la otra.
 DIST_MIN_CM, DIST_MAX_CM = 38.0, 64.0
-RANGO_CABEZA_CM = 4.0      # recorrido tolerable de la cabeza durante la sesion
+RANGO_CABEZA_MIN_CM = 1.0  # menos movimiento que esto y la correccion no se puede estimar
+RANGO_CABEZA_MAX_CM = 15.0  # mas que esto no es moverse, es haberse ido
 CORR_MIRADA_MIN = 0.40     # correlacion minima ojos<->objetivo para que haya senal
 CORR_CABEZA_MAX = 0.50     # por encima de esto, se siguio a los puntos con la cabeza
 # ...pero solo si ademas se movio de verdad: en la sesion buena del 2026-09-06 la
@@ -276,12 +325,17 @@ def revisa_sesion(feats, targets, heads):
             avisos.append(f"Estabas a ~{dist:.0f} cm: demasiado "
                           f"{'cerca' if cerca else 'lejos'}. Asi {porque}.")
         rango = (validas[:, :2].max(axis=0) - validas[:, :2].min(axis=0))
-        if rango.max() > RANGO_CABEZA_CM:
+        if rango.max() < RANGO_CABEZA_MIN_CM:
             avisos.append(
-                f"La cabeza se movio {rango[0]:.1f} cm en lateral y {rango[1]:.1f} cm "
-                f"en vertical durante la calibracion. Cada cm obliga al ojo a rotar "
-                f"para no perder el punto, y eso entra en las features como si fuera "
-                f"mirada.")
+                f"La cabeza casi no se movio ({rango[0]:.1f} cm en lateral, "
+                f"{rango[1]:.1f} en vertical). El modelo necesita ver la misma "
+                f"mirada desde posturas distintas para aprender a corregir el "
+                f"movimiento; sin eso la calibracion solo valdra desde esta silla. "
+                f"Muevete un poco cuando la ventana lo pida.")
+        elif rango.max() > RANGO_CABEZA_MAX_CM:
+            avisos.append(
+                f"La cabeza se movio {rango.max():.0f} cm: demasiado. Es mas "
+                f"probable que el seguimiento te perdiera a que sea movimiento util.")
         for j, eje in ((0, "horizontal"), (1, "vertical")):
             if (abs(_corr(validas[:, j], Tv[:, j])) > CORR_CABEZA_MAX
                     and rango[j] > AMPLITUD_CABEZA_CM):

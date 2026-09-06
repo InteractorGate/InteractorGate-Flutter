@@ -34,8 +34,10 @@ import cv2
 import numpy as np
 
 import config
-from calibration import DIST_MAX_CM, DIST_MIN_CM, load_calibration
-from eye_tracker import EyeTracker, head_angles, head_translation
+from calibration import (DIST_MAX_CM, DIST_MIN_CM, GazeMapper,
+                         load_calibration)
+from eye_tracker import (EyeTracker, feature_vector, head_angles,
+                         head_translation)
 
 WINDOW = "Encuadre de camara - InteractorGate"
 
@@ -63,12 +65,6 @@ ESTABLE_S = 1.5                    # tiempo en verde antes de dar el visto bueno
 # Media celda del tablero (botones de 204x155 px): el margen de error que la
 # app tolera antes de que la mirada caiga en la celda de al lado.
 MARGEN_X_PX, MARGEN_Y_PX = 102.0, 77.0
-
-# Indices del vector de features que dependen de donde esta la cabeza en el
-# encuadre, y su posicion dentro de los regresores de cada eje (calibration.py).
-X_IDX = [0, 2, 4, 6, 8]
-Y_IDX = [1, 3, 5, 7, 9, 10, 11]
-IRIS_X, IRIS_Y = {4, 6}, {5, 7}
 
 VERDE, ROJO, AMBAR = (90, 220, 90), (70, 70, 235), (60, 190, 235)
 GRIS, BLANCO = (140, 140, 140), (245, 245, 245)
@@ -98,24 +94,29 @@ def referencia_calibracion():
     if not len(h):
         return None
     return {"head": h.mean(axis=0), "creada": calib.get("creada", "?"),
-            "gaze": calib["gaze"]}
+            "mapper": GazeMapper.from_dict(calib["gaze"])}
 
 
-def sensibilidad_px_por_cm(gaze, px_por_cm):
+def sensibilidad_px_por_cm(mapper, feats):
     """Cuantos px de pantalla se mueve la estimacion por cada cm de cabeza.
 
-    Sale de los propios coeficientes de la calibracion: el peso de las features
-    de iris CRUDO dividido por su desviacion tipica (estan estandarizadas), y
-    convertido de unidades de encuadre a centimetros con la escala que da la
-    distancia interpupilar.
+    Se mide EMPUJANDO el modelo, no leyendo sus coeficientes: se toma el vector
+    de features de este instante, se le suma 1 cm a la posicion de la cabeza y se
+    mira cuanto se desplaza la prediccion. Asi vale para cualquier modelo (el
+    plano de v1-v3 y el geometrico de v4) y no hay que mantener sincronizada una
+    formula con la estructura del ajuste. Sin recortar a [0,1], que si no una
+    prediccion saturada contra el borde parece insensible.
     """
-    std = np.asarray(gaze["std"], dtype=np.float64)
-    cx = np.asarray(gaze["coef_x"], dtype=np.float64)
-    cy = np.asarray(gaze["coef_y"], dtype=np.float64)
-    dx = sum(cx[j] / std[k] for j, k in enumerate(X_IDX) if k in IRIS_X)
-    dy = sum(cy[j] / std[k] for j, k in enumerate(Y_IDX) if k in IRIS_Y)
-    return (abs(dx) * px_por_cm / config.CAP_WIDTH * config.SCREEN_WIDTH,
-            abs(dy) * px_por_cm / config.CAP_HEIGHT * config.SCREEN_HEIGHT)
+    base = np.array(mapper.transform(feats, recorta=False))
+    escala = np.array([config.SCREEN_WIDTH, config.SCREEN_HEIGHT])
+    fuera = []
+    for i in (12, 13, 14):                      # head x, y, z (cm)
+        movido = list(feats)
+        movido[i] += 1.0
+        fuera.append(np.abs(np.array(mapper.transform(movido, recorta=False))
+                            - base) * escala)
+    # Peor caso por eje de pantalla entre moverse en lateral, vertical y fondo.
+    return (max(f[0] for f in fuera), max(f[1] for f in fuera))
 
 
 def medir(res, gris, historial):
@@ -143,7 +144,7 @@ def medir(res, gris, historial):
         "px_por_cm": ipd / IPD_CM if ipd > 1 else 0.0,
         "yaw": np.degrees(yaw), "pitch": np.degrees(pitch),
         "luz_cara": cara, "luz_fondo": float(gris.mean()),
-        "jitter": jitter, "head": head,
+        "jitter": jitter, "head": head, "feats": feature_vector(res),
     }
 
 
@@ -191,7 +192,7 @@ def evaluar(m, ref):
         return checks, None
 
     d = m["head"] - ref["head"]
-    sx, sy = sensibilidad_px_por_cm(ref["gaze"], m["px_por_cm"])
+    sx, sy = sensibilidad_px_por_cm(ref["mapper"], m["feats"])
     err_x, err_y = abs(d[0]) * sx, abs(d[1]) * sy
     ok_p = err_x <= MARGEN_X_PX and err_y <= MARGEN_Y_PX
     checks.append((
@@ -278,14 +279,16 @@ def pinta(frame, m, checks, margen, ref, ok_desde):
     cv2.line(lienzo, (x0, y), (x0 + PANEL_W - MARGEN, y), (60, 60, 60), 1)
     y += 26
     if margen:
-        _texto(lienzo, "COSTE DE MOVERSE (esta calibracion)", (x0, y), 0.5, GRIS)
+        _texto(lienzo, "SI TE MUEVES SIN QUE EL OJO COMPENSE", (x0, y), 0.5, GRIS)
         y += 24
         _texto(lienzo, f"{margen['sx']:.0f} px de pantalla por cm de cabeza (X)",
                (x0, y), 0.46, BLANCO); y += 20
         _texto(lienzo, f"{margen['sy']:.0f} px por cm en vertical (Y)",
                (x0, y), 0.46, BLANCO); y += 22
-        _texto(lienzo, f"Margen antes de fallar de celda: "
-                       f"{margen['margen_cm_x']:.1f} cm", (x0, y), 0.46, AMBAR)
+        _texto(lienzo, f"Peor caso: {margen['margen_cm_x']:.1f} cm hasta fallar "
+                       f"de celda", (x0, y), 0.46, AMBAR)
+        y += 20
+        _texto(lienzo, "El numero real lo da diag_deriva.py", (x0, y), 0.42, GRIS)
         y += 24
         if ref:
             _texto(lienzo, f"Calibracion del {ref['creada'][:16]}", (x0, y), 0.42, GRIS)

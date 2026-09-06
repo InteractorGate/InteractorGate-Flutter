@@ -75,7 +75,7 @@ def head_translation(pose_matrix):
 
 # Version del vector de features. Una calibracion solo vale para la version con
 # la que se hizo: si esto cambia, hay que recalibrar (load_calibration lo obliga).
-FEATURES_VERSION = 3
+FEATURES_VERSION = 4
 
 
 def feature_vector(face):
@@ -96,25 +96,26 @@ def feature_vector(face):
     Se conservan `v_ratio` y la apertura: aportan una pista vertical distinta y
     el ajuste ridge ya decide cuanto peso darles.
 
-    v3 (2026-09-06) anade la DISTANCIA a la camara (posicion 12). No es una
-    contradiccion con lo anterior: las features invariantes dicen hacia donde
-    apunta el ojo dentro de la cabeza, pero para saber que punto de la PANTALLA
-    es eso hace falta saber a que distancia esta la cabeza -- el mismo angulo
-    apunta mas lejos cuanto mas atras estes. Es el termino geometrico que
-    faltaba, no otra pista de mirada. Medido: con el, el error vertical con la
-    cabeza movida baja de 16.9 % a 7.1 % y su R2 con la postura cae de 0.64 a
-    0.01, o sea que la postura deja de explicar el error. Aditivo y no
-    multiplicativo porque con el rango de distancia de una sesion normal (39-42
-    cm) las dos formas son indistinguibles, y esta es mas simple.
+    v3 (2026-09-06) anadio la DISTANCIA a la camara. Las features invariantes
+    dicen hacia donde apunta el ojo dentro de la cabeza, pero para saber que
+    punto de la PANTALLA es eso hace falta saber donde esta la cabeza: el mismo
+    angulo apunta mas lejos cuanto mas atras estes.
+
+    v4 (2026-09-06) anade la POSICION COMPLETA de la cabeza (12, 13, 14 = x, y,
+    z en cm). No son pistas de mirada y el calibrador no las trata como tales:
+    son los datos que necesita el modelo geometrico de `calibration.terminos()`
+    para componer donde esta la cabeza con hacia donde apunta el ojo, que es lo
+    que permite que el usuario pueda MOVERSE. Ver la nota alli.
     """
     r, l = face.right, face.left
     yaw, pitch = head_angles(face.pose_matrix)
+    hx, hy, hz = head_translation(face.pose_matrix)
     return [
         r.h_ratio, r.v_ratio, l.h_ratio, l.v_ratio,
         r.off[0], r.off[1], l.off[0], l.off[1],
         yaw, pitch,
         r.openness, l.openness,
-        head_translation(face.pose_matrix)[2],
+        hx, hy, hz,
     ]
 
 
