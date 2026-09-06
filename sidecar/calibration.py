@@ -145,6 +145,18 @@ def run_calibration():
     vfeats, vtargets, _ = _collect(cap, tracker, VERIFY_POINTS, ts)
     cap.release(); cv2.destroyAllWindows(); tracker.close()
 
+    # El ajuste ya es valido: guardarlo antes de verificar, para no perderlo
+    # si la verificacion no reune muestras suficientes.
+    save_calibration(mapper)
+
+    if len(vfeats) < 5:
+        print(f"Muestras calibracion: {len(feats)} | verificacion: {len(vfeats)}")
+        print("AVISO: la verificacion no reunio muestras suficientes (rostro no "
+              "detectado). No se puede estimar el error, pero la calibracion "
+              "SI se guardo.")
+        print(f"Calibracion guardada -> {config.CALIB_FILE}")
+        return mapper
+
     preds = np.array([mapper.transform(f) for f in vfeats])
     gts = np.array(vtargets)
     diff = preds - gts
@@ -156,7 +168,6 @@ def run_calibration():
     print(f"  eje X: {np.abs(diff[:, 0]).mean() * 100:.1f}%  |  "
           f"eje Y: {np.abs(diff[:, 1]).mean() * 100:.1f}%")
 
-    save_calibration(mapper)
     print(f"Calibracion guardada -> {config.CALIB_FILE}")
     return mapper
 
