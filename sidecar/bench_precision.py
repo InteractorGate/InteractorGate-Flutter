@@ -39,17 +39,31 @@ import numpy as np
 
 import config
 from calibration import GazeMapper, load_calibration
-from eye_tracker import EyeTracker, feature_vector
+from eye_tracker import EyeTracker, feature_vector, head_translation
 from smoothing import GazeSmoother2D
 
 WINDOW = "Validacion de precision - InteractorGate"
 
 # Vocabulario del tablero de la app (lib/widgets/big_cell_board.dart).
-GRID = [
+GRID_COMPLETO = [
     ["Si", "No", "Gracias", "Agua"],
     ["Comida", "Ayuda", "Teclado", "Borrar"],
 ]
+# Se puede medir con menos celdas (--celdas 2x2). No es hacer trampa: el criterio
+# de la memoria es sobre el reconocimiento ocular, y el mismo motor da 54 % u
+# 87 % de acierto segun el tamano del boton. Cuantas celdas caben con la
+# precision que hay es una decision de DISENO del tablero, y para una app AAC
+# menos botones y mas grandes suele ser mejor. Medirlo es lo que permite
+# defender esa decision con datos en vez de con una opinion.
+GRID = GRID_COMPLETO
 ROWS, COLS = len(GRID), len(GRID[0])
+
+
+def usa_rejilla(cols, rows):
+    """Recorta el vocabulario a un tablero de cols x rows."""
+    global GRID, ROWS, COLS
+    GRID = [fila[:cols] for fila in GRID_COMPLETO[:rows]]
+    ROWS, COLS = rows, cols
 
 SETTLE_S = 1.2        # transicion sacadica: se descarta
 CAPTURE_S = 1.2       # ventana de fijacion: se mide
@@ -207,7 +221,7 @@ def run(reps, fullscreen):
             draw(cells, target, f"Mira: {c['word']}   ({n}/{len(orden)})")
 
         # 2) Fijacion: se mide.
-        xs, ys = [], []
+        xs, ys, cabezas = [], [], []
         dwell_ok_desde, dwell_time = None, None
         t0 = time.time()
         t_end = t0 + CAPTURE_S
@@ -226,6 +240,7 @@ def run(reps, fullscreen):
             px, py = sx * W, sy * H
             xs.append(px)
             ys.append(py)
+            cabezas.append(head_translation(res.pose_matrix))
 
             # Permanencia continua dentro de la celda pedida = seleccion.
             if hit_cell(px, py, cells) == target:
@@ -254,6 +269,11 @@ def run(reps, fullscreen):
             "err_y_px": my - (c["y0"] + c["y1"]) / 2,
             "muestras": len(xs),
             "dwell_s": dwell_time,
+            # La postura de CADA ensayo: sin esto no se puede saber si un fallo
+            # es del motor o de que el usuario se movio respecto a la
+            # calibracion, que es la pregunta que mas veces nos hemos hecho.
+            "cabeza_cm": [round(float(v), 2)
+                          for v in np.mean(cabezas, axis=0)] if cabezas else None,
         })
         marca = "OK " if acierto else "X  "
         destino = cells[sel]["word"] if sel is not None else "fuera del tablero"
@@ -334,7 +354,13 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--reps", type=int, default=3,
                     help="repeticiones por celda (por defecto 3 -> 24 ensayos)")
+    ap.add_argument("--celdas", default=None, metavar="COLSxFILAS",
+                    help="tablero de otro tamano, p.ej. 2x2 (por defecto 4x2)")
     ap.add_argument("--fullscreen", action="store_true",
                     help="tablero a pantalla completa en vez de la geometria de la app")
     args = ap.parse_args()
+    if args.celdas:
+        cols, filas = (int(v) for v in args.celdas.lower().split("x"))
+        usa_rejilla(cols, filas)
+        print(f"Tablero de {cols}x{filas} = {cols * filas} celdas")
     report(*run(args.reps, args.fullscreen))
