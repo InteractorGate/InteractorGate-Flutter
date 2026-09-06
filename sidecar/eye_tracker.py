@@ -39,6 +39,7 @@ class EyeData:
     openness: float            # apertura vertical/horizontal (para parpadeo)
     h_ratio: float             # iris en X relativo a las esquinas (0=int, 1=ext)
     v_ratio: float             # iris en Y relativo a los parpados (0=arriba, 1=abajo)
+    off: tuple                 # iris en el marco del PROPIO ojo (ver _eye)
 
 
 @dataclass
@@ -72,16 +73,34 @@ def head_translation(pose_matrix):
     return tuple(float(v) for v in pose_matrix[:3, 3])
 
 
+# Version del vector de features. Una calibracion solo vale para la version con
+# la que se hizo: si esto cambia, hay que recalibrar (load_calibration lo obliga).
+FEATURES_VERSION = 2
+
+
 def feature_vector(face):
-    """Vector de features de mirada (12D) para el calibrador:
-    iris relativo al ojo (invariante a la cabeza) + iris crudo (mas rango) +
-    pose de cabeza + apertura del parpado (pista vertical fuerte: al mirar abajo
-    el ojo se cierra, al mirar arriba se abre)."""
+    """Vector de features de mirada (12D) para el calibrador.
+
+    v2 (2026-09-06). La v1 usaba el iris CRUDO (su coordenada en el encuadre) en
+    las posiciones 4-7. Medido con la mirada fija y solo moviendo la cabeza: el
+    99 % del error vertical lo explicaba la postura, a 1639 px de pantalla por cm
+    de cabeza. El tablero tolera 77 px, o sea medio milimetro de cabeza. Inviable.
+
+    Se sustituye por el iris en el marco del PROPIO ojo (`off`): invariante a
+    donde este la cabeza, a la distancia y al giro de cabeza. La v1 ya tenia una
+    feature asi para el vertical (`v_ratio`) pero se normaliza con la apertura
+    del parpado, que se cierra al mirar abajo justo cuando el iris baja: la senal
+    se cancela sola (0.404 -> 0.357 entre la fila de arriba y la de abajo de la
+    rejilla). El ancho del ojo, en cambio, es rigido.
+
+    Se conservan `v_ratio` y la apertura: aportan una pista vertical distinta y
+    el ajuste ridge ya decide cuanto peso darles.
+    """
     r, l = face.right, face.left
     yaw, pitch = head_angles(face.pose_matrix)
     return [
         r.h_ratio, r.v_ratio, l.h_ratio, l.v_ratio,
-        r.iris[0], r.iris[1], l.iris[0], l.iris[1],
+        r.off[0], r.off[1], l.off[0], l.off[1],
         yaw, pitch,
         r.openness, l.openness,
     ]
@@ -162,9 +181,29 @@ class EyeTracker:
         denom_y = lm[bot].y - lm[top].y
         h_ratio = float((cx - lm[ci].x) / denom_x) if abs(denom_x) > 1e-6 else 0.5
         v_ratio = float((cy - lm[top].y) / denom_y) if abs(denom_y) > 1e-6 else 0.5
+
+        # Iris en el marco del PROPIO ojo, en PIXELES (isotropo, no en las
+        # coordenadas normalizadas de MediaPipe, que deforman x frente a y).
+        # El eje va de la esquina interna a la externa y la unidad es el ancho
+        # del ojo, que es rigido: no cambia al mirar arriba o abajo (a diferencia
+        # de la apertura del parpado, que es lo que hacia inutil a v_ratio) ni al
+        # acercarse a la camara. Al ser relativo al ojo, tampoco depende de donde
+        # este la cabeza en el encuadre: eso es lo que se busca. Como el eje sigue
+        # a las esquinas, tambien absorbe la inclinacion lateral de la cabeza.
+        ax, ay = (lm[ce].x - lm[ci].x) * w, (lm[ce].y - lm[ci].y) * h
+        ancho = math.hypot(ax, ay)
+        if ancho > 1e-6:
+            ux, uy = ax / ancho, ay / ancho          # unitario interna->externa
+            dx = cx * w - (lm[ci].x + lm[ce].x) / 2 * w
+            dy = cy * h - (lm[ci].y + lm[ce].y) / 2 * h
+            off = (float((dx * ux + dy * uy) / ancho),      # a lo largo del ojo
+                   float((-dx * uy + dy * ux) / ancho))     # perpendicular
+        else:
+            off = (0.0, 0.0)
         return EyeData(patch=patch, iris=(round(cx, 4), round(cy, 4)),
                        openness=round(openness, 4),
-                       h_ratio=round(h_ratio, 4), v_ratio=round(v_ratio, 4))
+                       h_ratio=round(h_ratio, 4), v_ratio=round(v_ratio, 4),
+                       off=(round(off[0], 5), round(off[1], 5)))
 
     def close(self):
         self._landmarker.close()

@@ -15,7 +15,8 @@ import cv2
 import numpy as np
 
 import config
-from eye_tracker import EyeTracker, feature_vector, head_translation
+from eye_tracker import (FEATURES_VERSION, EyeTracker, feature_vector,
+                         head_translation)
 
 # Rejilla 4x4 en rango AMPLIO: mientras mas se mueven los ojos entre puntos,
 # mas fuerte la senal (sobre todo en vertical). La zona central de trabajo se
@@ -32,10 +33,12 @@ WINDOW = "Calibracion InteractorGate"
 
 
 # Indices del feature_vector (12D) por eje, para que el ruido vertical no
-# contamine el horizontal (que es el eje preciso).
-#  0 r.h  1 r.v  2 l.h  3 l.v  4 r.ix 5 r.iy 6 l.ix 7 l.iy  8 yaw 9 pitch 10 r.op 11 l.op
-X_IDX = [0, 2, 4, 6, 8]                 # h_ratios + iris_x + head yaw
-Y_IDX = [1, 3, 5, 7, 9, 10, 11]         # v_ratios + iris_y + head pitch + apertura
+# contamine el horizontal (que es el eje preciso). Las posiciones 4-7 son el iris
+# en el marco del propio ojo (v2); en v1 eran el iris crudo del encuadre.
+#  0 r.h  1 r.v  2 l.h  3 l.v  4 r.offx 5 r.offy 6 l.offx 7 l.offy  8 yaw 9 pitch
+#  10 r.op  11 l.op
+X_IDX = [0, 2, 4, 6, 8]                 # h_ratios + iris_x del ojo + head yaw
+Y_IDX = [1, 3, 5, 7, 9, 10, 11]         # v_ratios + iris_y del ojo + pitch + apertura
 
 
 def _ridge(Z, y, lam):
@@ -155,7 +158,23 @@ def run_calibration():
     # si la verificacion no reune muestras suficientes. Se guardan tambien las
     # muestras crudas: sin ellas no se puede reanalizar una calibracion mala a
     # posteriori (ni comparar juegos de features) sin repetir la sesion.
-    save_calibration(mapper, samples=_samples_dict(feats, targets, heads))
+    # Se guardan tambien las muestras de VERIFICACION: son las mismas caras y la
+    # misma postura unos minutos despues, asi que son el unico registro de lo que
+    # cambia con el tiempo dentro de una sesion. El 2026-09-06 el eje Y pasaba de
+    # 3.0 % (validacion cruzada dentro del ajuste) a 34.9 % en ellas.
+    muestras = _samples_dict(feats, targets, heads)
+    muestras["verify"] = _samples_dict(vfeats, vtargets, vheads)
+    save_calibration(mapper, samples=muestras)
+
+    avisos = revisa_sesion(feats, targets, heads)
+    if avisos:
+        print("\nREVISION DE LA SESION -- esta calibracion NO es fiable:")
+        for a in avisos:
+            print(f"  - {a}")
+        print("  Repitela: main.py --encuadre (hasta que este todo en verde) y "
+              "luego main.py --calibrate, con la cabeza quieta.")
+    else:
+        print("\nRevision de la sesion: postura estable y senal ocular en ambos ejes.")
 
     if len(vfeats) < 5:
         print(f"Muestras calibracion: {len(feats)} | verificacion: {len(vfeats)}")
@@ -180,6 +199,71 @@ def run_calibration():
     return mapper
 
 
+# ── Revision de la sesion ────────────────────────────────────────────────────
+# Una calibracion puede salir mal por como se hizo la sesion, no por el ajuste:
+# si la cabeza se pasea, si se sigue a los puntos con el cuello en vez de con los
+# ojos, o si uno se sienta tan cerca que las columnas extremas caen fuera del
+# alcance ocular. Eso no se ve en el error de verificacion (que puede salir
+# "regular" por muchos motivos) pero si en las muestras crudas. Medido el
+# 2026-09-06: una sesion a 37 cm con 11.7 cm de vaiven lateral dio 46 % de error
+# y CERO correlacion entre los ojos y el objetivo horizontal.
+DIST_MIN_CM, DIST_MAX_CM = 38.0, 64.0
+RANGO_CABEZA_CM = 4.0      # recorrido tolerable de la cabeza durante la sesion
+CORR_MIRADA_MIN = 0.40     # correlacion minima ojos<->objetivo para que haya senal
+CORR_CABEZA_MAX = 0.50     # por encima de esto, se siguio a los puntos con la cabeza
+# ...pero solo si ademas se movio de verdad: en la sesion buena del 2026-09-06 la
+# cabeza correlacionaba -0.97 con el objetivo Y moviendose 4 MILIMETROS. Una
+# correlacion sin amplitud no mueve la mirada; avisar de eso es un falso positivo.
+AMPLITUD_CABEZA_CM = 2.0
+
+
+def _corr(a, b):
+    if np.std(a) < 1e-9 or np.std(b) < 1e-9:
+        return 0.0
+    return float(np.corrcoef(a, b)[0, 1])
+
+
+def revisa_sesion(feats, targets, heads):
+    """Defectos de la sesion de calibracion. Devuelve la lista de avisos."""
+    F, T, H = (np.asarray(x, dtype=np.float64) for x in (feats, targets, heads))
+    avisos = []
+
+    mask = np.any(H != 0, axis=1) if len(H) else np.zeros(0, bool)
+    validas, Tv = H[mask], T[mask]
+    if len(validas):
+        dist = abs(validas[:, 2].mean())
+        if dist and not DIST_MIN_CM <= dist <= DIST_MAX_CM:
+            cerca = dist < DIST_MIN_CM
+            porque = ("los puntos de los bordes caen fuera del alcance comodo del "
+                      "ojo y el cuello acaba haciendo el trabajo" if cerca else
+                      "los ojos se mueven muy poco entre puntos y la senal se "
+                      "confunde con el ruido")
+            avisos.append(f"Estabas a ~{dist:.0f} cm: demasiado "
+                          f"{'cerca' if cerca else 'lejos'}. Asi {porque}.")
+        rango = (validas[:, :2].max(axis=0) - validas[:, :2].min(axis=0))
+        if rango.max() > RANGO_CABEZA_CM:
+            avisos.append(
+                f"La cabeza se movio {rango[0]:.1f} cm en lateral y {rango[1]:.1f} cm "
+                f"en vertical durante la calibracion. Cada cm obliga al ojo a rotar "
+                f"para no perder el punto, y eso entra en las features como si fuera "
+                f"mirada.")
+        for j, eje in ((0, "horizontal"), (1, "vertical")):
+            if (abs(_corr(validas[:, j], Tv[:, j])) > CORR_CABEZA_MAX
+                    and rango[j] > AMPLITUD_CABEZA_CM):
+                avisos.append(
+                    f"Seguiste los puntos en {eje} moviendo la CABEZA "
+                    f"({rango[j]:.1f} cm). Hay que seguirlos solo con los ojos.")
+
+    cx = max(abs(_corr(F[:, 0], T[:, 0])), abs(_corr(F[:, 2], T[:, 0])))
+    cy = max(abs(_corr(F[:, 1], T[:, 1])), abs(_corr(F[:, 3], T[:, 1])))
+    if cx < CORR_MIRADA_MIN:
+        avisos.append(f"Sin senal ocular horizontal (correlacion {cx:.2f}): los ojos "
+                      f"no acompanaron a los puntos de izquierda a derecha.")
+    if cy < CORR_MIRADA_MIN:
+        avisos.append(f"Senal ocular vertical debil (correlacion {cy:.2f}).")
+    return avisos
+
+
 def _samples_dict(feats, targets, heads):
     """Muestras crudas de la calibracion, para reanalisis offline."""
     return {
@@ -193,7 +277,8 @@ def save_calibration(mapper, samples=None):
     data = {"gaze": mapper.to_dict(),
             "blink_threshold": config.BLINK_THRESHOLD,
             "screen": [config.SCREEN_WIDTH, config.SCREEN_HEIGHT],
-            "creada": time.strftime("%Y-%m-%dT%H:%M:%S")}
+            "creada": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "features_version": FEATURES_VERSION}
     if samples is not None:
         data["samples"] = samples
     with open(config.CALIB_FILE, "w", encoding="utf-8") as fh:
@@ -201,11 +286,24 @@ def save_calibration(mapper, samples=None):
 
 
 def load_calibration():
+    """Calibracion guardada, o None si no existe o es de otra version.
+
+    Los coeficientes solo tienen sentido para el vector de features con el que se
+    ajustaron: usar una calibracion v1 con features v2 no da un resultado peor,
+    da uno sin significado. Mejor tratarla como inexistente y recalibrar.
+    """
     try:
         with open(config.CALIB_FILE, encoding="utf-8") as fh:
-            return json.load(fh)
+            data = json.load(fh)
     except FileNotFoundError:
         return None
+    version = data.get("features_version", 1)
+    if version != FEATURES_VERSION:
+        print(f"AVISO: la calibracion guardada es de la version {version} de las "
+              f"features y ahora se usa la {FEATURES_VERSION}. Hay que recalibrar: "
+              f"main.py --calibrate")
+        return None
+    return data
 
 
 if __name__ == "__main__":

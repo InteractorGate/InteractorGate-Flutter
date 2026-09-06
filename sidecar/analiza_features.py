@@ -80,6 +80,15 @@ def cv_deja_un_punto(X, T, x_idx, y_idx):
     return float(np.mean(ex)), float(np.mean(ey))
 
 
+def error_en_verificacion(predice, V):
+    """Error sobre las muestras de verificacion: misma postura, unos minutos
+    despues del ajuste. Aisla lo que cambia con el TIEMPO, no con la postura."""
+    P = predice(np.array(V["features"], dtype=np.float64))
+    T = np.array(V["targets"], dtype=np.float64)
+    return (float(np.abs(P[:, 0] - T[:, 0]).mean()),
+            float(np.abs(P[:, 1] - T[:, 1]).mean()))
+
+
 def error_en_diagnostico(predice, D, objetivo):
     """Error medio y sensibilidad a la postura sobre la sesion de diagnostico."""
     F = np.array([m["features"] for m in D])
