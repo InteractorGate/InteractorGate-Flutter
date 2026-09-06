@@ -59,6 +59,19 @@ def head_angles(pose_matrix):
     return (float(yaw), float(pitch))
 
 
+def head_translation(pose_matrix):
+    """Traslacion de la cabeza (x, y, z) desde la matriz de pose facial.
+
+    Viene en las unidades del modelo facial canonico de MediaPipe (~cm), asi que
+    sirve para medir CUANTO se movio la cabeza entre la calibracion y el uso: la
+    causa candidata de que un mapeo recien calibrado deje de valer minutos
+    despues. No entra en el vector de features; solo se registra para diagnostico.
+    """
+    if pose_matrix is None:
+        return (0.0, 0.0, 0.0)
+    return tuple(float(v) for v in pose_matrix[:3, 3])
+
+
 def feature_vector(face):
     """Vector de features de mirada (12D) para el calibrador:
     iris relativo al ojo (invariante a la cabeza) + iris crudo (mas rango) +

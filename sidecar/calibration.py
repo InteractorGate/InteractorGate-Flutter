@@ -15,7 +15,7 @@ import cv2
 import numpy as np
 
 import config
-from eye_tracker import EyeTracker, feature_vector
+from eye_tracker import EyeTracker, feature_vector, head_translation
 
 # Rejilla 4x4 en rango AMPLIO: mientras mas se mueven los ojos entre puntos,
 # mas fuerte la senal (sobre todo en vertical). La zona central de trabajo se
@@ -101,8 +101,11 @@ def _draw_target(nx, ny, label=""):
 
 
 def _collect(cap, tracker, points, ts0):
-    """Muestra cada punto, descarta la transicion y captura features al fijar."""
-    feats, targets = [], []
+    """Muestra cada punto, descarta la transicion y captura features al fijar.
+
+    Devuelve tambien la traslacion de cabeza de cada muestra: es lo que permite
+    saber, mas tarde, desde que postura se calibro."""
+    feats, targets, heads = [], [], []
     ts = ts0
     for k, (nx, ny) in enumerate(points):
         _draw_target(nx, ny, f"Mira el punto {k + 1}/{len(points)}")
@@ -120,7 +123,8 @@ def _collect(cap, tracker, points, ts0):
             if res is not None:
                 feats.append(feature_vector(res))
                 targets.append((nx, ny))
-    return feats, targets, ts
+                heads.append(head_translation(res.pose_matrix))
+    return feats, targets, ts, heads
 
 
 def run_calibration():
@@ -134,7 +138,7 @@ def run_calibration():
     _fullscreen_window()
 
     print("Calibracion: mira cada punto rojo hasta que cambie.")
-    feats, targets, ts = _collect(cap, tracker, CALIB_POINTS, 0)
+    feats, targets, ts, heads = _collect(cap, tracker, CALIB_POINTS, 0)
     if len(feats) < 40:
         print(f"ERROR: muy pocas muestras ({len(feats)}). Rostro no detectado?")
         cap.release(); cv2.destroyAllWindows(); tracker.close()
@@ -142,12 +146,14 @@ def run_calibration():
 
     mapper = GazeMapper().fit(feats, targets)
 
-    vfeats, vtargets, _ = _collect(cap, tracker, VERIFY_POINTS, ts)
+    vfeats, vtargets, _, vheads = _collect(cap, tracker, VERIFY_POINTS, ts)
     cap.release(); cv2.destroyAllWindows(); tracker.close()
 
     # El ajuste ya es valido: guardarlo antes de verificar, para no perderlo
-    # si la verificacion no reune muestras suficientes.
-    save_calibration(mapper)
+    # si la verificacion no reune muestras suficientes. Se guardan tambien las
+    # muestras crudas: sin ellas no se puede reanalizar una calibracion mala a
+    # posteriori (ni comparar juegos de features) sin repetir la sesion.
+    save_calibration(mapper, samples=_samples_dict(feats, targets, heads))
 
     if len(vfeats) < 5:
         print(f"Muestras calibracion: {len(feats)} | verificacion: {len(vfeats)}")
@@ -172,10 +178,22 @@ def run_calibration():
     return mapper
 
 
-def save_calibration(mapper):
+def _samples_dict(feats, targets, heads):
+    """Muestras crudas de la calibracion, para reanalisis offline."""
+    return {
+        "features": [[round(v, 5) for v in f] for f in feats],
+        "targets": [[round(x, 4), round(y, 4)] for x, y in targets],
+        "head": [[round(v, 4) for v in h] for h in heads],
+    }
+
+
+def save_calibration(mapper, samples=None):
     data = {"gaze": mapper.to_dict(),
             "blink_threshold": config.BLINK_THRESHOLD,
-            "screen": [config.SCREEN_WIDTH, config.SCREEN_HEIGHT]}
+            "screen": [config.SCREEN_WIDTH, config.SCREEN_HEIGHT],
+            "creada": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    if samples is not None:
+        data["samples"] = samples
     with open(config.CALIB_FILE, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2)
 
