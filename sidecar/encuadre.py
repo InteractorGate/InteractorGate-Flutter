@@ -164,9 +164,15 @@ def evaluar(m, ref):
     checks.append(("Altura de camara", ok_y, f"ojos a {m['cy'] * 100:.0f} % del alto",
                    accion + ": los ojos deben quedar en la linea"))
 
-    ok_d = IPD_MIN <= m["ipd"] <= IPD_MAX
-    accion = "ALEJATE de la pantalla" if m["ipd"] > IPD_MAX else "ACERCATE a la pantalla"
-    checks.append(("Distancia", ok_d, f"~{m['dist_cm']:.0f} cm", accion))
+    # El criterio va en centimetros, no en pixeles de separacion entre pupilas:
+    # esos dependian de la focal supuesta, y suponerla mal aprobaba distancias
+    # que no debia. Los umbrales se comparten con calibration.py.
+    d = m["dist_cm"]
+    ok_d = DIST_MIN_CM <= d <= DIST_MAX_CM
+    accion = ("ALEJATE de la pantalla" if d < DIST_MIN_CM
+              else "ACERCATE a la pantalla")
+    checks.append(("Distancia", ok_d, f"~{d:.0f} cm "
+                   f"(objetivo {DIST_MIN_CM:.0f}-{DIST_MAX_CM:.0f})", accion))
 
     ok_a = abs(m["yaw"]) <= ANG_MAX and abs(m["pitch"]) <= ANG_MAX
     checks.append(("Cabeza frontal", ok_a,
