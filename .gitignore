@@ -46,3 +46,6 @@ app.*.map.json
 
 # Instalador (Inno Setup) — el .exe generado se regenera con ISCC
 /installer/Output/
+
+# Imagen de referencia del encuadre: contiene la cara de quien la tomo.
+sidecar/encuadre_referencia.png
