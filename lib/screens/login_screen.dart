@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/auth_controller.dart';
-import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -55,16 +54,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text('InteractorGate',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium),
+                const SizedBox(height: 8),
+                Text('Acceso para participantes del estudio',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(height: 32),
                 TextField(
                   controller: _user,
-                  decoration: const InputDecoration(labelText: 'Usuario'),
+                  decoration: const InputDecoration(
+                      labelText: 'Código de participante',
+                      hintText: 'P01'),
                   textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _pass,
-                  decoration: const InputDecoration(labelText: 'Contraseña'),
+                  decoration: const InputDecoration(labelText: 'Clave de acceso'),
                   obscureText: true,
                   onSubmitted: (_) => _submit(),
                 ),
@@ -76,16 +81,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           height: 22,
                           width: 22,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Iniciar sesión'),
+                      : const Text('Entrar'),
                 ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: _busy
-                      ? null
-                      : () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => const RegisterScreen())),
-                  child: const Text('Crear una cuenta'),
-                ),
+                const SizedBox(height: 16),
+                Text(
+                    'El código y la clave los entrega el equipo de investigación '
+                    'en la primera sesión.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
           ),

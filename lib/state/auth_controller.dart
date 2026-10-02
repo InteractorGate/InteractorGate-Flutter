@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../config/api_config.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
@@ -18,43 +17,17 @@ class AuthController extends ChangeNotifier {
   String? error;
 
   /// Al arrancar: intenta usar los tokens guardados para recuperar el perfil.
-  /// Si no hay sesión válida, hace auto-login con la cuenta demo embebida para
-  /// entrar directo al tablero (sin pantalla de login). El login manual queda
-  /// como fallback solo si el auto-login también falla.
+  /// Si no hay sesión válida, muestra la pantalla de acceso, donde el
+  /// investigador introduce el código de participante la primera vez; después
+  /// los tokens guardados mantienen la sesión.
   Future<void> bootstrap() async {
     try {
       user = await _auth.me();
       status = AuthStatus.authenticated;
     } catch (_) {
-      final ok = await _autoLoginDemo();
-      status = ok ? AuthStatus.authenticated : AuthStatus.unauthenticated;
+      status = AuthStatus.unauthenticated;
     }
     notifyListeners();
-  }
-
-  /// Entra con la cuenta demo. Si no existe todavía en el backend, la registra
-  /// (el registro deja la sesión iniciada) y reintenta.
-  Future<bool> _autoLoginDemo() async {
-    try {
-      await _auth.login(ApiConfig.demoUsername, ApiConfig.demoPassword);
-      user = await _auth.me();
-      return true;
-    } catch (_) {
-      // La cuenta puede no estar creada aún: registrarla y volver a intentar.
-    }
-    try {
-      await _auth.register(
-        username: ApiConfig.demoUsername,
-        email: ApiConfig.demoEmail,
-        password: ApiConfig.demoPassword,
-        password2: ApiConfig.demoPassword,
-      );
-      await _auth.login(ApiConfig.demoUsername, ApiConfig.demoPassword);
-      user = await _auth.me();
-      return true;
-    } catch (_) {
-      return false;
-    }
   }
 
   Future<bool> login(String username, String password) async {
@@ -67,7 +40,7 @@ class AuthController extends ChangeNotifier {
       return true;
     } on ApiException catch (e) {
       error = e.statusCode == 401
-          ? 'Usuario o contraseña incorrectos.'
+          ? 'Código de participante o clave incorrectos.'
           : e.message;
       notifyListeners();
       return false;

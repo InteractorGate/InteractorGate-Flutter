@@ -11,13 +11,9 @@ class ApiConfig {
 
   static String get baseUrl => useProd ? prodBaseUrl : devBaseUrl;
 
-  /// Cuenta demo embebida: la app entra directo al tablero sin pantalla de
-  /// login (auto-login al arrancar). Si no existe en el backend, se registra
-  /// sola en el primer arranque. Cambia estas credenciales si querés otra
-  /// cuenta de demostración.
-  static const String demoUsername = 'demo_ig';
-  static const String demoPassword = 'Interactor2026!';
-  static const String demoEmail = 'demo@interactorgate.app';
+  /// No hay cuenta embebida: cada participante entra con el código y la clave
+  /// que le asignan los investigadores (P01, P02…), de modo que sus datos
+  /// quedan separados y seudonimizados. Ningún secreto viaja dentro del .exe.
 
   /// Sidecar de rastreo ocular (proceso Python) — socket TCP local.
   static const String gazeHost = '127.0.0.1';
