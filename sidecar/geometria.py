@@ -36,12 +36,20 @@ def rect_tablero_app_abierta():
 
 
 def rect_tablero_nominal():
-    """Rect del tablero deducido de la geometria fija de la ventana."""
+    """Rect del tablero deducido de la geometria fija de la ventana.
+
+    Tiene que coincidir con windows/runner/main.cpp, que es quien coloca la
+    ventana de verdad. Desde el 2026-09-09 esta CENTRADA en las dos
+    direcciones; antes iba pegada al borde inferior y el tablero caia en el
+    63-94 % de la altura de la pantalla, unos 27 grados por debajo de la linea
+    de los ojos. Si los dos sitios se desincronizan, la calibracion apunta a un
+    tablero que no esta ahi: eso fue la causa n.5 del 06/09.
+    """
     user32 = ctypes.windll.user32
     area = wintypes.RECT()
     user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(area), 0)  # SPI_GETWORKAREA
     ox = area.left + ((area.right - area.left) - WIN_W) // 2
-    oy = area.bottom - WIN_H
+    oy = area.top + ((area.bottom - area.top) - WIN_H) // 2
     cx, cy = ox + 1, oy + 31          # borde + barra de titulo
     cw, ch = WIN_W - 2, WIN_H - 32
     top = cy + APPBAR_H + PAD + TEXTBAR_H + GAP + SUGG_H + GAP

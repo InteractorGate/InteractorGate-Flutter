@@ -48,10 +48,11 @@ OPEN_GAZE_THRESHOLD = 0.15
 # Suavizado exponencial del punto de mirada (0=nada, ~0.6 estable, 1=congelado).
 GAZE_SMOOTHING = 0.6
 
-# Zona de trabajo de la mirada (fraccion de pantalla): una CAJA CENTRAL. La
-# calibracion y el cursor operan dentro de ella, evitando los bordes (donde el
-# vertical se satura y "no baja") y coincidiendo con la ventana reducida de la
-# app. Coincide aprox. con una ventana ~900x640 centrada en 1920x1080.
+# Caja central de referencia (fraccion de pantalla). OJO: ya NO gobierna la
+# calibracion ni el cursor -- desde que existe geometria.py, la region a
+# calibrar se deduce del tablero real de la app. Aqui solo queda como objetivo
+# por defecto de diag_deriva.py. Se conserva porque sigue describiendo bien la
+# zona util (fuera de ella el vertical se satura y "no baja").
 WORK_X = (0.27, 0.73)
 WORK_Y = (0.24, 0.80)
 

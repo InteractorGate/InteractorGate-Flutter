@@ -264,8 +264,15 @@ def run_calibration():
         print("\nREVISION DE LA SESION -- esta calibracion NO es fiable:")
         for a in avisos:
             print(f"  - {a}")
+        # OJO: este consejo decia "con la cabeza quieta" hasta el 2026-09-09, y
+        # era el criterio de v3. En v4 la cabeza TIENE que moverse en la segunda
+        # ventana de cada punto; quedarse quieto es justamente el aviso de
+        # arriba. Decir lo contrario aqui hacia que repetir la calibracion
+        # reprodujera el mismo fallo: paso en la sesion del 09/09.
         print("  Repitela: main.py --encuadre (hasta que este todo en verde) y "
-              "luego main.py --calibrate, con la cabeza quieta.")
+              "luego main.py --calibrate. Sigue los puntos con los OJOS, y "
+              "cuando la ventana pida moverte, muevete de verdad (unos 2 cm, "
+              "sin dejar de mirar el punto).")
     else:
         print("\nRevision de la sesion: postura estable y senal ocular en ambos ejes.")
 
