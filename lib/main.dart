@@ -1,3 +1,5 @@
+import 'dart:ui' show AppExitResponse;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -47,7 +49,9 @@ void main() {
 }
 
 /// Mata el sidecar cuando la app se cierra (en Windows los procesos hijo no se
-/// terminan automáticamente al cerrar el padre).
+/// terminan automáticamente al cerrar el padre). Cubre el cierre normal; los
+/// cierres bruscos los cubren el Job Object de `windows/runner/main.cpp` y el
+/// `--parent-pid` que vigila el propio sidecar.
 class _SidecarLifecycle extends StatefulWidget {
   const _SidecarLifecycle({required this.sidecar, required this.child});
 
@@ -64,6 +68,14 @@ class _SidecarLifecycleState extends State<_SidecarLifecycle>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  // Al pulsar la X de la ventana: apagar el tracker antes de salir. En Windows
+  // `detached` no siempre llega; esta es la vía fiable para un cierre normal.
+  @override
+  Future<AppExitResponse> didRequestAppExit() async {
+    widget.sidecar.stop();
+    return AppExitResponse.exit;
   }
 
   @override

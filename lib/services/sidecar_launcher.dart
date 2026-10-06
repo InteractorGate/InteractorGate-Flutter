@@ -23,9 +23,10 @@ class SidecarLauncher {
       return;
     }
     try {
+      // --parent-pid: el sidecar se apaga solo si esta app muere sin avisar.
       _proc = await Process.start(
         spec.executable,
-        spec.args,
+        [...spec.args, '--parent-pid', '$pid'],
         workingDirectory: spec.workingDir,
       );
       // Drenar salida para que el proceso no se bloquee por buffers llenos.
@@ -38,9 +39,17 @@ class SidecarLauncher {
     }
   }
 
+  /// Mata el sidecar y sus hijos. En desarrollo el python.exe del venv es un
+  /// lanzador que crea otro python.exe: matar solo al primero dejaba vivo al
+  /// que mueve el cursor. `taskkill /T` recorre el árbol.
   void stop() {
-    _proc?.kill(ProcessSignal.sigterm);
+    final proc = _proc;
     _proc = null;
+    if (proc == null) return;
+    try {
+      Process.runSync('taskkill', ['/PID', '${proc.pid}', '/T', '/F']);
+    } catch (_) {}
+    proc.kill(ProcessSignal.sigkill);
   }
 
   _SidecarSpec? _resolve() {
