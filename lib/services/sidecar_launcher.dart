@@ -1,9 +1,13 @@
 import 'dart:io';
 
-/// Lanza el sidecar de rastreo ocular (proceso Python) junto con la app y lo
-/// mata al cerrar. El sidecar corre en "modo servicio": si no hay calibración
-/// la ejecuta primero, y luego entra en modo Mouse (el cursor del SO sigue la
-/// mirada, con clic por parpadeo), lo que hace funcionar el tablero dwell.
+/// Lanza el sidecar de rastreo ocular (proceso Python) cuando un participante
+/// inicia sesión y lo mata al cerrar sesión o la app. El sidecar corre en
+/// "modo servicio": si ese participante no tiene calibración la ejecuta
+/// primero, y luego entra en modo Mouse (el cursor del SO sigue la mirada, con
+/// clic por parpadeo), lo que hace funcionar el tablero dwell.
+///
+/// La calibración es por participante: el código (P01...) va al sidecar en la
+/// variable IG_USUARIO y cada uno tiene su propio archivo de calibración.
 ///
 /// Resolución del ejecutable, en orden:
 ///   1. Variable de entorno `IG_SIDECAR_CMD` (ruta a un .exe) — para pruebas.
@@ -12,10 +16,25 @@ import 'dart:io';
 ///      relativo al directorio de trabajo actual.
 class SidecarLauncher {
   Process? _proc;
+  String? _usuario;
+  Future<void> _cola = Future.value();
 
   bool get running => _proc != null;
 
-  Future<void> start() async {
+  /// Alinea el sidecar con la sesión: lo arranca para [usuario], lo reinicia
+  /// si cambia de participante y lo apaga con `null` (sin sesión). Antes del
+  /// login el ratón queda normal para que el investigador escriba el código.
+  void seguirA(String? usuario) {
+    if (usuario == _usuario) return;
+    _usuario = usuario;
+    // En cola, para que dos cambios seguidos no lancen dos sidecars a la vez.
+    _cola = _cola.then((_) async {
+      stop();
+      if (usuario != null) await start(usuario: usuario);
+    });
+  }
+
+  Future<void> start({String? usuario}) async {
     if (!Platform.isWindows || _proc != null) return;
     final spec = _resolve();
     if (spec == null) {
@@ -28,11 +47,17 @@ class SidecarLauncher {
         spec.executable,
         [...spec.args, '--parent-pid', '$pid'],
         workingDirectory: spec.workingDir,
+        environment: {if (usuario != null) 'IG_USUARIO': usuario},
       );
       // Drenar salida para que el proceso no se bloquee por buffers llenos.
-      _proc!.stdout.drain<void>();
-      _proc!.stderr.drain<void>();
-      _proc!.exitCode.then((_) => _proc = null);
+      final proc = _proc!;
+      proc.stdout.drain<void>();
+      proc.stderr.drain<void>();
+      // Solo si sigue siendo el actual: al cambiar de participante el viejo
+      // termina después de lanzado el nuevo.
+      proc.exitCode.then((_) {
+        if (identical(_proc, proc)) _proc = null;
+      });
     } catch (e) {
       stderr.writeln('[sidecar] no se pudo lanzar: $e');
       _proc = null;

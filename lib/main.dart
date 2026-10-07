@@ -24,11 +24,19 @@ void main() {
   final predictionService = PredictionService(api);
   final telemetryService = TelemetryService(api);
 
-  // --- Sidecar de rastreo ocular (proceso Python): arranca con la app ---
-  final sidecar = SidecarLauncher()..start();
+  // --- Sidecar de rastreo ocular (proceso Python): arranca tras el login ---
+  final sidecar = SidecarLauncher();
 
   // --- Controladores de estado ---
-  final authController = AuthController(authService)..bootstrap();
+  final authController = AuthController(authService);
+  // Un sidecar por participante (cada uno con su calibración): se lanza al
+  // iniciar sesión, se reinicia al cambiar de código y se apaga al salir.
+  authController.addListener(() => sidecar.seguirA(
+        authController.status == AuthStatus.authenticated
+            ? authController.user?.username
+            : null,
+      ));
+  authController.bootstrap();
   final sessionController =
       SessionController(predictionService, telemetryService)..start();
   final gazeBridge = GazeBridge()..connect();

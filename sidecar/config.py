@@ -1,6 +1,7 @@
 """Constantes compartidas del tracker (referenciadas por gaze_server.py)."""
 import ctypes
 import os
+import re
 import sys
 
 import cv2
@@ -56,7 +57,16 @@ GAZE_SMOOTHING = 0.6
 WORK_X = (0.27, 0.73)
 WORK_Y = (0.24, 0.80)
 
-CALIB_FILE = os.path.join(_user_data_dir(), "calibration.json")
+def _calib_file():
+    """Una calibracion por participante: la app pasa el codigo (P01...) en la
+    variable IG_USUARIO, y un participante nuevo calibra al entrar por primera
+    vez. Sin codigo (desarrollo, scripts) se usa calibration.json."""
+    usuario = re.sub(r"[^A-Za-z0-9_-]", "", os.environ.get("IG_USUARIO", ""))
+    nombre = f"calibration_{usuario}.json" if usuario else "calibration.json"
+    return os.path.join(_user_data_dir(), nombre)
+
+
+CALIB_FILE = _calib_file()
 # Indice de la webcam. Puede cambiar si se reconecta la camara; overridable por
 # env var IG_CAM_INDEX. (0 tipico; se reenumera a veces al reconectar.)
 CAM_INDEX = int(os.environ.get("IG_CAM_INDEX", 0))
