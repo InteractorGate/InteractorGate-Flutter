@@ -260,6 +260,7 @@ def run_calibration():
     save_calibration(mapper, samples=muestras)
 
     avisos = revisa_sesion(feats, targets, heads)
+    _anota_calibracion({"avisos": avisos})
     if avisos:
         print("\nREVISION DE LA SESION -- esta calibracion NO es fiable:")
         for a in avisos:
@@ -277,6 +278,7 @@ def run_calibration():
         print("\nRevision de la sesion: postura estable y senal ocular en ambos ejes.")
 
     if len(vfeats) < 5:
+        _anota_calibracion({"verificacion": {"muestras": len(vfeats)}})
         print(f"Muestras calibracion: {len(feats)} | verificacion: {len(vfeats)}")
         print("AVISO: la verificacion no reunio muestras suficientes (rostro no "
               "detectado). No se puede estimar el error, pero la calibracion "
@@ -289,6 +291,14 @@ def run_calibration():
     diff = preds - gts
     err_norm = np.linalg.norm(diff, axis=1)
     diag_px = np.hypot(config.SCREEN_WIDTH, config.SCREEN_HEIGHT)
+    _anota_calibracion({"verificacion": {
+        "muestras": len(vfeats),
+        "error_medio_pct": round(float(err_norm.mean()) * 100, 2),
+        "error_max_pct": round(float(err_norm.max()) * 100, 2),
+        "error_x_pct": round(float(np.abs(diff[:, 0]).mean()) * 100, 2),
+        "error_y_pct": round(float(np.abs(diff[:, 1]).mean()) * 100, 2),
+        "error_medio_px": round(float(err_norm.mean() * diag_px)),
+    }})
     print(f"\nMuestras calibracion: {len(feats)} | verificacion: {len(vfeats)}")
     print(f"Error medio: {err_norm.mean() * 100:.1f}% de pantalla "
           f"(~{err_norm.mean() * diag_px:.0f} px) | max {err_norm.max() * 100:.1f}%")
@@ -401,6 +411,20 @@ def save_calibration(mapper, samples=None):
         data["samples"] = samples
     with open(config.CALIB_FILE, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2)
+
+
+def _anota_calibracion(campos):
+    """Agrega un resumen (avisos, error de verificacion) a la calibracion ya
+    guardada. La app lo copia al registro de la sesion: es el unico rastro de
+    la calidad de la calibracion con la que se hizo cada ensayo."""
+    try:
+        with open(config.CALIB_FILE, encoding="utf-8") as fh:
+            data = json.load(fh)
+        data.update(campos)
+        with open(config.CALIB_FILE, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2)
+    except (OSError, ValueError) as exc:
+        print(f"AVISO: no se pudo anotar la calibracion: {exc}")
 
 
 def load_calibration():

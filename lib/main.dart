@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'config/app_version.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
 import 'services/gaze_bridge.dart';
@@ -29,16 +30,24 @@ void main() {
 
   // --- Controladores de estado ---
   final authController = AuthController(authService);
+  final sessionController = SessionController(
+      predictionService, telemetryService,
+      appVersion: appVersion);
   // Un sidecar por participante (cada uno con su calibración): se lanza al
   // iniciar sesión, se reinicia al cambiar de código y se apaga al salir.
-  authController.addListener(() => sidecar.seguirA(
-        authController.status == AuthStatus.authenticated
-            ? authController.user?.username
-            : null,
-      ));
+  // La sesión del registro sigue el mismo ciclo.
+  authController.addListener(() {
+    final usuario = authController.status == AuthStatus.authenticated
+        ? authController.user?.username
+        : null;
+    sidecar.seguirA(usuario);
+    if (usuario != null) {
+      sessionController.comenzar(usuario);
+    } else {
+      sessionController.terminar();
+    }
+  });
   authController.bootstrap();
-  final sessionController =
-      SessionController(predictionService, telemetryService)..start();
   final gazeBridge = GazeBridge()..connect();
 
   runApp(
@@ -50,6 +59,7 @@ void main() {
       ],
       child: _SidecarLifecycle(
         sidecar: sidecar,
+        session: sessionController,
         child: const InteractorGateApp(),
       ),
     ),
@@ -61,9 +71,14 @@ void main() {
 /// cierres bruscos los cubren el Job Object de `windows/runner/main.cpp` y el
 /// `--parent-pid` que vigila el propio sidecar.
 class _SidecarLifecycle extends StatefulWidget {
-  const _SidecarLifecycle({required this.sidecar, required this.child});
+  const _SidecarLifecycle({
+    required this.sidecar,
+    required this.session,
+    required this.child,
+  });
 
   final SidecarLauncher sidecar;
+  final SessionController session;
   final Widget child;
 
   @override
@@ -83,6 +98,10 @@ class _SidecarLifecycleState extends State<_SidecarLifecycle>
   @override
   Future<AppExitResponse> didRequestAppExit() async {
     widget.sidecar.stop();
+    // Cerrar la sesión del registro (session_end) sin retener la salida.
+    await widget.session
+        .terminar()
+        .timeout(const Duration(seconds: 2), onTimeout: () {});
     return AppExitResponse.exit;
   }
 

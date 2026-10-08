@@ -23,6 +23,7 @@ import config
 from blink_detector import BlinkDetector
 from calibration import GazeMapper, load_calibration, run_calibration
 from encuadre import run_encuadre
+from registro_rastreo import RegistroRastreo
 from eye_tracker import EyeTracker, feature_vector
 from smoothing import GazeSmoother2D
 
@@ -58,7 +59,7 @@ def _click():
     _user32.mouse_event(0x0004, 0, 0, 0, 0)   # LEFTUP
 
 
-def run_mouse(duration=45, click_on_blink=True):
+def run_mouse(duration=45, click_on_blink=True, registro=None):
     saved = load_calibration()
     if not saved:
         print("ERROR: no hay calibracion. Corre: python main.py --calibrate")
@@ -82,21 +83,33 @@ def run_mouse(duration=45, click_on_blink=True):
     ts, clicks = 0, 0
     t0 = time.time()
     while duration <= 0 or time.time() - t0 < duration:
+        if registro:
+            registro.tick()
         ok, frame = cap.read()
         if not ok:
+            if registro:
+                registro.fallos_camara += 1
             continue
+        if registro:
+            registro.leidos += 1
         ts += 33
         res = tracker.process(frame, ts)
         if res is None:
+            if registro:
+                registro.sin_rostro += 1
             continue
         # El parpadeo se evalua siempre (para el clic y para mantener el conteo).
         openness = (res.right.openness + res.left.openness) / 2
         if blink.detect(openness) and click_on_blink:
             _click()
             clicks += 1
+            if registro:
+                registro.clics += 1
         # Ojo cerrado: mantener la ultima posicion (no dejar que el parpadeo
         # dispare el cursor). La mirada solo es valida con el ojo abierto.
         if openness < config.OPEN_GAZE_THRESHOLD:
+            if registro:
+                registro.ojos_cerrados += 1
             continue
         gx, gy = mapper.transform(feature_vector(res))
         sx, sy = smoother.update(gx, gy, time.time())
@@ -117,7 +130,8 @@ def run_service(click_on_blink=True):
         if run_calibration() is None:
             print("ERROR: la calibracion no se completo.")
             return 1
-    return run_mouse(duration=0, click_on_blink=click_on_blink)
+    return run_mouse(duration=0, click_on_blink=click_on_blink,
+                     registro=RegistroRastreo())
 
 
 if __name__ == "__main__":
