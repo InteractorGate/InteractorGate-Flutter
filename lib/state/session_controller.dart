@@ -93,11 +93,14 @@ class SessionController extends ChangeNotifier {
     condicion = Condicion.conPrediccion;
     _telemetry.abrirSesion(usuario, sessionId);
     notifyListeners();
-    await _log('session_start', data: {
-      'app_version': appVersion,
-      ..._ajustes(),
-      'calibracion': await leerCalibracion(usuario),
-    });
+    await _log(
+      'session_start',
+      data: {
+        'app_version': appVersion,
+        ..._ajustes(),
+        'calibracion': await leerCalibracion(usuario),
+      },
+    );
   }
 
   Future<void> terminar() async {
@@ -113,16 +116,17 @@ class SessionController extends ChangeNotifier {
   /// Cambiar de tablero es una celda más del tablero: dentro de un ensayo
   /// cuenta como selección (cuesta una permanencia como cualquier otra).
   void toggleBoardMode() {
-    boardMode =
-        boardMode == BoardMode.words ? BoardMode.keyboard : BoardMode.words;
-    ensayo?.selecciones++;
-    ensayo?.cambiosTablero++;
+    boardMode = boardMode == BoardMode.words
+        ? BoardMode.keyboard
+        : BoardMode.words;
+    _abierto?.selecciones++;
+    _abierto?.cambiosTablero++;
     notifyListeners();
-    _log('settings', gaze: puntero, data: {
-      ..._ajustes(),
-      'cambio': 'tablero',
-      ..._ensayoData(),
-    });
+    _log(
+      'settings',
+      gaze: puntero,
+      data: {..._ajustes(), 'cambio': 'tablero', ..._ensayoData()},
+    );
   }
 
   void setDwellEnabled(bool value) {
@@ -149,11 +153,14 @@ class SessionController extends ChangeNotifier {
     text = '';
     suggestions = [];
     notifyListeners();
-    await _log('trial_start', data: {
-      ..._ensayoData(),
-      ..._ajustes(),
-      'calibracion': await leerCalibracion(_usuario),
-    });
+    await _log(
+      'trial_start',
+      data: {
+        ..._ensayoData(),
+        ..._ajustes(),
+        'calibracion': await leerCalibracion(_usuario),
+      },
+    );
   }
 
   /// Cierra el ensayo en curso: [completado] si el texto llegó al objetivo,
@@ -163,19 +170,22 @@ class SessionController extends ChangeNotifier {
     if (e == null || e.completado) return;
     e.completado = true;
     notifyListeners();
-    await _log('trial_end', data: {
-      ..._ensayoData(),
-      'completado': completado,
-      'texto_final': text,
-      'duracion_ms': DateTime.now().difference(e.inicio).inMilliseconds,
-      'selecciones': e.selecciones,
-      'teclas': e.teclas,
-      'palabras': e.palabras,
-      'sugerencias_aceptadas': e.sugerenciasAceptadas,
-      'borrados': e.borrados,
-      'limpiezas': e.limpiezas,
-      'cambios_tablero': e.cambiosTablero,
-    });
+    await _log(
+      'trial_end',
+      data: {
+        ..._datosDe(e),
+        'completado': completado,
+        'texto_final': text,
+        'duracion_ms': DateTime.now().difference(e.inicio).inMilliseconds,
+        'selecciones': e.selecciones,
+        'teclas': e.teclas,
+        'palabras': e.palabras,
+        'sugerencias_aceptadas': e.sugerenciasAceptadas,
+        'borrados': e.borrados,
+        'limpiezas': e.limpiezas,
+        'cambios_tablero': e.cambiosTablero,
+      },
+    );
   }
 
   /// Vuelve al uso libre: sin ensayo y con predicción.
@@ -189,8 +199,8 @@ class SessionController extends ChangeNotifier {
 
   Future<void> type(String char) async {
     text += char;
-    ensayo?.selecciones++;
-    ensayo?.teclas++;
+    _abierto?.selecciones++;
+    _abierto?.teclas++;
     notifyListeners();
     _logSeleccion(char == ' ' ? 'espacio' : 'tecla', char);
     await _despuesDeEditar();
@@ -202,15 +212,19 @@ class SessionController extends ChangeNotifier {
     if (text.isEmpty) return;
     final borrado = text.substring(text.length - 1);
     text = text.substring(0, text.length - 1);
-    ensayo?.selecciones++;
-    ensayo?.borrados++;
+    _abierto?.selecciones++;
+    _abierto?.borrados++;
     notifyListeners();
-    _log('delete', gaze: puntero, data: {
-      'borrado': borrado,
-      'largo': text.length,
-      ..._ensayoData(),
-      if (ensayo != null) 'texto': text,
-    });
+    _log(
+      'delete',
+      gaze: puntero,
+      data: {
+        'borrado': borrado,
+        'largo': text.length,
+        ..._ensayoData(),
+        if (_abierto != null) 'texto': text,
+      },
+    );
     await _despuesDeEditar();
   }
 
@@ -218,21 +232,22 @@ class SessionController extends ChangeNotifier {
     final largoPrevio = text.length;
     text = '';
     suggestions = [];
-    ensayo?.selecciones++;
-    ensayo?.limpiezas++;
+    _abierto?.selecciones++;
+    _abierto?.limpiezas++;
     notifyListeners();
-    _log('clear', gaze: puntero, data: {
-      'largo_previo': largoPrevio,
-      ..._ensayoData(),
-    });
+    _log(
+      'clear',
+      gaze: puntero,
+      data: {'largo_previo': largoPrevio, ..._ensayoData()},
+    );
   }
 
   /// Inserta una palabra completa (celda AAC) al texto, con espacio, y refresca
   /// las sugerencias de la RNN para seguir prediciendo.
   Future<void> insertWord(String word) async {
     text = text.isEmpty ? word : '${text.trimRight()} $word';
-    ensayo?.selecciones++;
-    ensayo?.palabras++;
+    _abierto?.selecciones++;
+    _abierto?.palabras++;
     notifyListeners();
     _logSeleccion('celda', word);
     await _despuesDeEditar();
@@ -242,22 +257,30 @@ class SessionController extends ChangeNotifier {
     final rango = suggestions.indexOf(phrase);
     text = text.isEmpty ? phrase : '${text.trimRight()} $phrase';
     suggestions = [];
-    ensayo?.selecciones++;
-    ensayo?.sugerenciasAceptadas++;
+    _abierto?.selecciones++;
+    _abierto?.sugerenciasAceptadas++;
     notifyListeners();
     _logSeleccion('sugerencia', phrase, extra: {'rango': rango});
     _comprobarObjetivo();
   }
 
-  void _logSeleccion(String origen, String valor,
-      {Map<String, Object?>? extra}) {
-    _log('selection', selectedWord: valor, gaze: puntero, data: {
-      'origen': origen,
-      'largo': text.length,
-      ..._ensayoData(),
-      if (ensayo != null) 'texto': text,
-      ...?extra,
-    });
+  void _logSeleccion(
+    String origen,
+    String valor, {
+    Map<String, Object?>? extra,
+  }) {
+    _log(
+      'selection',
+      selectedWord: valor,
+      gaze: puntero,
+      data: {
+        'origen': origen,
+        'largo': text.length,
+        ..._ensayoData(),
+        if (_abierto != null) 'texto': text,
+        ...?extra,
+      },
+    );
   }
 
   Future<void> _despuesDeEditar() async {
@@ -292,21 +315,27 @@ class SessionController extends ChangeNotifier {
       final prediction = await _predictions.predictText(context, sessionId);
       if (consulta != _consulta) return;
       suggestions = prediction.suggestions;
-      _log('suggestions', data: {
-        'sugerencias': suggestions,
-        'largo_contexto': context.length,
-        // Latencia de extremo a extremo: red + modelo + respuesta.
-        'latencia_ms': DateTime.now().difference(t0).inMilliseconds,
-        ..._ensayoData(),
-      });
+      _log(
+        'suggestions',
+        data: {
+          'sugerencias': suggestions,
+          'largo_contexto': context.length,
+          // Latencia de extremo a extremo: red + modelo + respuesta.
+          'latencia_ms': DateTime.now().difference(t0).inMilliseconds,
+          ..._ensayoData(),
+        },
+      );
     } catch (_) {
       if (consulta != _consulta) return;
       suggestions = [];
-      _log('suggestions', data: {
-        'error': true,
-        'latencia_ms': DateTime.now().difference(t0).inMilliseconds,
-        ..._ensayoData(),
-      });
+      _log(
+        'suggestions',
+        data: {
+          'error': true,
+          'latencia_ms': DateTime.now().difference(t0).inMilliseconds,
+          ..._ensayoData(),
+        },
+      );
     } finally {
       if (consulta == _consulta) {
         loadingSuggestions = false;
@@ -315,22 +344,34 @@ class SessionController extends ChangeNotifier {
     }
   }
 
-  Map<String, Object?> _ensayoData() {
+  /// El ensayo que todavía recibe eventos. Uno ya terminado sigue en
+  /// pantalla («✓ Ensayo n terminado») hasta que se abra el siguiente, pero lo
+  /// que se seleccione mientras tanto ya no le pertenece: en la prueba del
+  /// 08/10/2026 una letra y una sugerencia elegidas tras completar «HOLA»
+  /// quedaban dentro del ensayo, después de su trial_end.
+  Ensayo? get _abierto {
     final e = ensayo;
-    if (e == null) return {'condicion': condicion.clave};
-    return {
-      'ensayo': e.numero,
-      'condicion': e.condicion.clave,
-      'objetivo': e.objetivo,
-    };
+    return e != null && !e.completado ? e : null;
   }
 
+  Map<String, Object?> _ensayoData() {
+    final e = _abierto;
+    if (e == null) return {'condicion': condicion.clave};
+    return _datosDe(e);
+  }
+
+  Map<String, Object?> _datosDe(Ensayo e) => {
+    'ensayo': e.numero,
+    'condicion': e.condicion.clave,
+    'objetivo': e.objetivo,
+  };
+
   Map<String, Object?> _ajustes() => {
-        'dwell_s': dwellSeconds,
-        'dwell': dwellEnabled,
-        'tablero': boardMode.name,
-        'condicion': condicion.clave,
-      };
+    'dwell_s': dwellSeconds,
+    'dwell': dwellEnabled,
+    'tablero': boardMode.name,
+    'condicion': condicion.clave,
+  };
 
   Future<void> _log(
     String eventType, {

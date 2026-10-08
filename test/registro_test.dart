@@ -67,8 +67,10 @@ void main() {
   });
 
   test('la sesión empieza con el login y termina con session_end', () async {
-    expect(tel.de('session_start').single['data'],
-        containsPair('app_version', 'test'));
+    expect(
+      tel.de('session_start').single['data'],
+      containsPair('app_version', 'test'),
+    );
     await s.terminar();
     expect(tel.eventos.last['event_type'], 'session_end');
     // Sin sesión no se registra nada.
@@ -93,25 +95,27 @@ void main() {
     expect(sel['rango'], 0);
   });
 
-  test('sin predicción no se consulta la RNN y se registran los borrados',
-      () async {
-    await s.iniciarEnsayo(Condicion.sinPrediccion, 'no');
-    s.toggleBoardMode(); // a teclado: también es una selección
-    await s.type('N');
-    await s.type('X');
-    await s.backspace();
-    await s.type('O');
+  test(
+    'sin predicción no se consulta la RNN y se registran los borrados',
+    () async {
+      await s.iniciarEnsayo(Condicion.sinPrediccion, 'no');
+      s.toggleBoardMode(); // a teclado: también es una selección
+      await s.type('N');
+      await s.type('X');
+      await s.backspace();
+      await s.type('O');
 
-    expect(pred.consultas, 0);
-    expect(s.suggestions, isEmpty);
-    expect(tel.de('delete').single['data'], containsPair('borrado', 'X'));
-    final fin = tel.de('trial_end').single['data'] as Map;
-    expect(fin['completado'], isTrue);
-    expect(fin['teclas'], 3);
-    expect(fin['borrados'], 1);
-    expect(fin['cambios_tablero'], 1);
-    expect(fin['selecciones'], 5);
-  });
+      expect(pred.consultas, 0);
+      expect(s.suggestions, isEmpty);
+      expect(tel.de('delete').single['data'], containsPair('borrado', 'X'));
+      final fin = tel.de('trial_end').single['data'] as Map;
+      expect(fin['completado'], isTrue);
+      expect(fin['teclas'], 3);
+      expect(fin['borrados'], 1);
+      expect(fin['cambios_tablero'], 1);
+      expect(fin['selecciones'], 5);
+    },
+  );
 
   test('con predicción se registran las sugerencias y su latencia', () async {
     await s.iniciarEnsayo(Condicion.conPrediccion, 'quiero agua');
@@ -120,6 +124,29 @@ void main() {
     expect(sug['sugerencias'], ['agua', 'ayuda']);
     expect(sug['latencia_ms'], isA<int>());
     expect(sug['ensayo'], 1);
+  });
+
+  test('lo que se elige tras completar la frase ya no es del ensayo', () async {
+    // Caso de la prueba manual del 08/10/2026: tras completar «HOLA» se
+    // eligieron una letra y una sugerencia antes de abrir el ensayo siguiente.
+    await s.iniciarEnsayo(Condicion.conPrediccion, 'no');
+    await s.type('N');
+    await s.type('O');
+    final fin = tel.de('trial_end').single['data'] as Map;
+    expect(fin['selecciones'], 2);
+    await s.type('Y');
+    await s.applySuggestion('agua');
+    final despues = tel.eventos
+        .skipWhile((e) => e['event_type'] != 'trial_end')
+        .skip(1)
+        .map((e) => e['data'] as Map?)
+        .toList();
+    expect(despues, isNotEmpty);
+    for (final d in despues) {
+      expect(d!.containsKey('ensayo'), isFalse);
+      expect(d.containsKey('texto'), isFalse);
+    }
+    expect(s.ensayo!.selecciones, 2); // los contadores tampoco cambian
   });
 
   test('abrir un ensayo nuevo abandona el que estaba en curso', () async {
@@ -147,8 +174,11 @@ void main() {
     }
     final archivos = Directory(carpeta).listSync().whereType<File>().toList();
     final lineas = archivos.single.readAsLinesSync();
-    expect(lineas.map((l) => jsonDecode(l)['event_type']),
-        ['session_start', 'selection', 'session_end']);
+    expect(lineas.map((l) => jsonDecode(l)['event_type']), [
+      'session_start',
+      'selection',
+      'session_end',
+    ]);
     expect(jsonDecode(lineas.first)['usuario'], 'ZZTEST');
     expect(jsonDecode(lineas.first)['timestamp'], endsWith('Z'));
   });
