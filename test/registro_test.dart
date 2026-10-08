@@ -145,7 +145,6 @@ void main() {
       // El envío al servidor falla sin red ni token: no debe importar.
       await real.log(sessionId: 's', eventType: t, data: {'k': 1});
     }
-    await real.vaciar();
     final archivos = Directory(carpeta).listSync().whereType<File>().toList();
     final lineas = archivos.single.readAsLinesSync();
     expect(lineas.map((l) => jsonDecode(l)['event_type']),

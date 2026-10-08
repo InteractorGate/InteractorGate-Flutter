@@ -22,8 +22,6 @@ class TelemetryService {
 
   File? _archivo;
   String? _usuario;
-  // Las escrituras se encadenan para que las líneas queden en orden.
-  Future<void> _escritura = Future.value();
 
   /// Carpeta de registros del participante, o null si no hay sesión.
   String? get carpeta => _archivo?.parent.path;
@@ -77,19 +75,17 @@ class TelemetryService {
     }
   }
 
+  /// Escritura síncrona: una línea de unos cientos de bytes cada pocos
+  /// segundos no se nota, las líneas quedan en orden y, si la app se cierra a
+  /// la fuerza, no se pierde ninguna que estuviera en cola.
   void _escribirLocal(Map<String, Object?> evento) {
     final archivo = _archivo;
     if (archivo == null) return;
     final linea = '${jsonEncode({'usuario': _usuario, ...evento})}\n';
-    _escritura = _escritura.then((_) async {
-      try {
-        await archivo.writeAsString(linea, mode: FileMode.append, flush: true);
-      } catch (_) {
-        // sin disco no hay registro local; el servidor puede tenerlo.
-      }
-    });
+    try {
+      archivo.writeAsStringSync(linea, mode: FileMode.append, flush: true);
+    } catch (_) {
+      // sin disco no hay registro local; el servidor puede tenerlo.
+    }
   }
-
-  /// Espera a que las líneas pendientes lleguen al disco (al cerrar la app).
-  Future<void> vaciar() => _escritura;
 }

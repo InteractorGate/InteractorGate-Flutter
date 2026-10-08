@@ -19,11 +19,13 @@ Future<Map<String, Object?>?> leerCalibracion(String? usuario) async {
       '${Platform.environment['LOCALAPPDATA']}\\InteractorGate\\$nombre',
     '${Directory.current.path}\\sidecar\\$nombre',
   ];
+  // Lectura síncrona: el archivo pesa pocos KB y se lee solo al abrir una
+  // sesión o un ensayo.
   for (final ruta in candidatos) {
     final archivo = File(ruta);
-    if (!await archivo.exists()) continue;
+    if (!archivo.existsSync()) continue;
     try {
-      final json = jsonDecode(await archivo.readAsString()) as Map;
+      final json = jsonDecode(archivo.readAsStringSync()) as Map;
       return {
         'creada': json['creada'],
         'features_version': json['features_version'],

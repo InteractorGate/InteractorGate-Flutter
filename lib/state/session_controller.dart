@@ -106,7 +106,6 @@ class SessionController extends ChangeNotifier {
       await terminarEnsayo(completado: false);
     }
     await _log('session_end', data: {'ensayos': _ensayosAbiertos});
-    await _telemetry.vaciar();
     _telemetry.cerrarSesion();
     _usuario = null;
   }
