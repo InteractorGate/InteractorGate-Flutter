@@ -42,33 +42,41 @@ class _Prediccion extends PredictionService {
   @override
   Future<Prediction> predictText(String context, String sessionId) async =>
       const Prediction(
-          suggestions: ['por favor', 'gracias', 'ayuda'], confidence: 0.4);
+        suggestions: ['por favor', 'gracias', 'ayuda'],
+        confidence: 0.4,
+      );
 }
 
 const _usuario = 'ZZVALIDA';
 
 void main() {
-  testWidgets('una sesión de E2 deja en disco todos los eventos del catálogo',
-      (tester) async {
+  testWidgets('una sesión de E2 deja en disco todos los eventos del catálogo', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1600, 1000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
     final telemetria = TelemetryService(_SinRed());
-    final session =
-        SessionController(_Prediccion(), telemetria, appVersion: 'prueba');
+    final session = SessionController(
+      _Prediccion(),
+      telemetria,
+      appVersion: 'prueba',
+    );
     final auth = AuthController(AuthService(_SinRed(), TokenStore()));
     await session.comenzar(_usuario);
     final carpeta = telemetria.carpeta!;
 
-    await tester.pumpWidget(MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(value: auth),
-        ChangeNotifierProvider.value(value: session),
-        ChangeNotifierProvider(create: (_) => GazeBridge()),
-      ],
-      child: const MaterialApp(home: HomeScreen()),
-    ));
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: auth),
+          ChangeNotifierProvider.value(value: session),
+          ChangeNotifierProvider(create: (_) => GazeBridge()),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
     await tester.pump();
 
     Finder en(Type tablero, String texto) =>
@@ -90,8 +98,14 @@ void main() {
       await tester.pump();
     }
 
-    Future<void> ensayo(LogicalKeyboardKey tecla, String frase) async {
+    Future<void> ensayo(
+      LogicalKeyboardKey tecla,
+      String frase, {
+      bool ctrl = false,
+    }) async {
+      if (ctrl) await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendKeyEvent(tecla);
+      if (ctrl) await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), frase);
       await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -101,15 +115,22 @@ void main() {
     // Ensayo 1, CON predicción: celda por permanencia + sugerencia (rango 0).
     await ensayo(LogicalKeyboardKey.f2, 'agua por favor');
     expect(session.ensayo?.objetivo, 'agua por favor');
-    expect(find.textContaining('agua por favor', findRichText: true),
-        findsOneWidget); // la frase se ve en la barra de título
+    expect(
+      find.textContaining('agua por favor', findRichText: true),
+      findsOneWidget,
+    ); // la frase se ve en la barra de título
     await mira(en(BigCellBoard, 'Agua'));
     await toca(en(SuggestionBar, 'por favor'));
     expect(session.ensayo!.completado, isTrue);
 
     // Ensayo 2, SIN predicción: celda, cambio a teclado, espacio, un error
     // corregido con borrar y el resto de letras.
-    await ensayo(LogicalKeyboardKey.f3, 'no quiero');
+    // Con Ctrl+2 en vez de F3: en muchas laptops la fila de F no llega a la
+    // app. Antes, un clic en el interruptor Dwell para quitarle el foco.
+    await toca(find.byType(Switch));
+    await toca(find.byType(Switch));
+    await ensayo(LogicalKeyboardKey.digit2, 'no quiero', ctrl: true);
+    expect(session.ensayo?.condicion, Condicion.sinPrediccion);
     expect(find.byType(SuggestionBar), findsNothing);
     await toca(en(BigCellBoard, 'No'));
     await toca(en(BigCellBoard, '⌨ Teclado'));
@@ -117,9 +138,12 @@ void main() {
     for (final ch in 'QUX'.split('')) {
       await toca(en(DwellKeyboard, ch));
     }
-    await mira(find.descendant(
+    await mira(
+      find.descendant(
         of: find.byType(DwellKeyboard),
-        matching: find.byIcon(Icons.backspace_outlined)));
+        matching: find.byIcon(Icons.backspace_outlined),
+      ),
+    );
     for (final ch in 'IERO'.split('')) {
       await toca(en(DwellKeyboard, ch));
     }
@@ -152,7 +176,8 @@ void main() {
       final destino = Directory('$salida\\registros\\$_usuario')
         ..createSync(recursive: true);
       archivos.single.copySync(
-          '${destino.path}\\${archivos.single.uri.pathSegments.last}');
+        '${destino.path}\\${archivos.single.uri.pathSegments.last}',
+      );
     }
     final ev = archivos.single
         .readAsLinesSync()
@@ -161,10 +186,20 @@ void main() {
     Directory(carpeta).deleteSync(recursive: true);
 
     final tipos = ev.map((e) => e['event_type']).toSet();
-    expect(tipos, containsAll(<String>[
-      'session_start', 'trial_start', 'selection', 'suggestions', 'settings',
-      'delete', 'clear', 'trial_end', 'session_end',
-    ]));
+    expect(
+      tipos,
+      containsAll(<String>[
+        'session_start',
+        'trial_start',
+        'selection',
+        'suggestions',
+        'settings',
+        'delete',
+        'clear',
+        'trial_end',
+        'session_end',
+      ]),
+    );
     expect(ev.first['event_type'], 'session_start');
     expect(ev.last['event_type'], 'session_end');
     for (final e in ev) {
@@ -183,14 +218,18 @@ void main() {
     expect(f2['borrados'], 1);
     expect(fines[2]['data']['limpiezas'], 1);
 
-    final sug = ev.firstWhere((e) =>
-        e['event_type'] == 'selection' && e['data']['origen'] == 'sugerencia');
+    final sug = ev.firstWhere(
+      (e) =>
+          e['event_type'] == 'selection' && e['data']['origen'] == 'sugerencia',
+    );
     expect(sug['data']['rango'], 0);
     // La selección por permanencia lleva la posición del puntero (= mirada).
     final porMirada = ev.firstWhere((e) => e['selected_word'] == 'Agua');
     expect(porMirada['gaze_coordinates'], isNotNull);
-    expect(ev.firstWhere((e) => e['event_type'] == 'delete')['gaze_coordinates'],
-        isNotNull);
+    expect(
+      ev.firstWhere((e) => e['event_type'] == 'delete')['gaze_coordinates'],
+      isNotNull,
+    );
     // Fuera de ensayo no se registra el texto completo.
     final libre = ev.lastWhere((e) => e['event_type'] == 'selection');
     expect(libre['data'].containsKey('texto'), isFalse);
