@@ -36,6 +36,7 @@ class Ensayo {
   int sugerenciasAceptadas = 0;
   int borrados = 0;
   int limpiezas = 0;
+  int cambiosTablero = 0;
 }
 
 /// Estado de una sesión de comunicación: texto compuesto, sugerencias de la
@@ -110,11 +111,19 @@ class SessionController extends ChangeNotifier {
     _usuario = null;
   }
 
+  /// Cambiar de tablero es una celda más del tablero: dentro de un ensayo
+  /// cuenta como selección (cuesta una permanencia como cualquier otra).
   void toggleBoardMode() {
     boardMode =
         boardMode == BoardMode.words ? BoardMode.keyboard : BoardMode.words;
+    ensayo?.selecciones++;
+    ensayo?.cambiosTablero++;
     notifyListeners();
-    _log('settings', data: _ajustes());
+    _log('settings', gaze: puntero, data: {
+      ..._ajustes(),
+      'cambio': 'tablero',
+      ..._ensayoData(),
+    });
   }
 
   void setDwellEnabled(bool value) {
@@ -166,6 +175,7 @@ class SessionController extends ChangeNotifier {
       'sugerencias_aceptadas': e.sugerenciasAceptadas,
       'borrados': e.borrados,
       'limpiezas': e.limpiezas,
+      'cambios_tablero': e.cambiosTablero,
     });
   }
 

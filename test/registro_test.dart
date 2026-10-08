@@ -96,6 +96,7 @@ void main() {
   test('sin predicción no se consulta la RNN y se registran los borrados',
       () async {
     await s.iniciarEnsayo(Condicion.sinPrediccion, 'no');
+    s.toggleBoardMode(); // a teclado: también es una selección
     await s.type('N');
     await s.type('X');
     await s.backspace();
@@ -108,6 +109,8 @@ void main() {
     expect(fin['completado'], isTrue);
     expect(fin['teclas'], 3);
     expect(fin['borrados'], 1);
+    expect(fin['cambios_tablero'], 1);
+    expect(fin['selecciones'], 5);
   });
 
   test('con predicción se registran las sugerencias y su latencia', () async {
