@@ -19,7 +19,7 @@ El plan organiza el trabajo técnico. No sustituye el protocolo de investigació
 |---|---|---|---|
 | 1 | Separar participantes y sesiones | Cerrado; publicado en v1.0.1 | [Workflow aprobado](https://github.com/InteractorGate/InteractorGate-Flutter/actions/runs/41572180738) |
 | 2 | Crear el modo de estudio para E2 | Validado localmente para piloto: 27 pruebas y cuatro comprobaciones manuales aprobadas | Inspección directa de registros de Azure pendiente por conectividad; publicación v1.0.2 en Actions/Releases |
-| 3 | Registrar los datos para calcular indicadores | Implementado y validado en local: 38 pruebas Flutter, 36 backend y piloto con pausa/reanudación de MongoDB | Publicación: [backend PR #62](https://github.com/InteractorGate/ig-django-backend/pull/62) antes de [cliente PR #9](https://github.com/InteractorGate/InteractorGate-Flutter/pull/9) |
+| 3 | Registrar los datos para calcular indicadores | Validado en local; backend v2 desplegado y comprobado en Azure | Cliente: [PR #9](https://github.com/InteractorGate/InteractorGate-Flutter/pull/9), [Release v1.0.3](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.3) y resultado de Actions |
 | 4 | Corregir los comportamientos de sugerencias que afectan E2 | Pendiente; existe una protección parcial frente a respuestas antiguas | Probar respuestas fuera de orden y palabras incompletas |
 | 5 | Completar el instrumento técnico de E1 | Pendiente; existe un benchmark inicial | Ejecutar y conservar las mediciones requeridas por E1 |
 | 6 | Completar la evaluación textual y el análisis | Pendiente | Comparar predictores y generar resultados por participante |
@@ -122,6 +122,7 @@ Instrucciones y listas completas: [ESTUDIO_E2.md](ESTUDIO_E2.md). Pruebas: [stud
 - El usuario confirmó el piloto Windows local con MongoDB pausado y reanudado: pendientes conservados, cierre fallido sin perder el mensaje, recuperación y avance único.
 - Archivo exportado de la app contrastado con MongoDB: 53 eventos y dos ensayos, sin IDs o secuencias repetidos, sin huecos y textos finales reconstruidos coincidentes. También se verificó ausencia de solicitudes reales de predicción en la condición desactivada.
 - Detalle, contrato y límites: [TELEMETRIA_E2.md](TELEMETRIA_E2.md). La validación local no se presenta como verificación del despliegue en Azure.
+- Backend publicado tras la revisión requerida: [PR #62](https://github.com/InteractorGate/ig-django-backend/pull/62), commit `128595c615e861b51a2c5c66c530f33045a29e3b`. [Despliegue #41672313415](https://github.com/InteractorGate/ig-django-backend/actions/runs/41672313415) aprobado; `/healthz/` respondió `{"status":"ok","telemetry_schema":2}`. Esta comprobación acredita el contrato activo, no sustituye la prueba integrada local con los datos del piloto.
 
 **Archivos de partida:** `lib/services/telemetry_service.dart`, `lib/state/session_controller.dart`, los callbacks de `home_screen.dart` y los serializadores y vistas de `ig-django-backend/interaction_logs`.
 
