@@ -20,8 +20,8 @@ El plan organiza el trabajo técnico. No sustituye el protocolo de investigació
 | 1 | Separar participantes y sesiones | Cerrado; publicado en v1.0.1 | [Workflow aprobado](https://github.com/InteractorGate/InteractorGate-Flutter/actions/runs/41572180738) |
 | 2 | Crear el modo de estudio para E2 | Validado localmente para piloto: 27 pruebas y cuatro comprobaciones manuales aprobadas | Inspección directa de registros de Azure pendiente por conectividad; publicación v1.0.2 en Actions/Releases |
 | 3 | Registrar los datos para calcular indicadores | Cerrado para piloto; backend v2 desplegado y cliente 1.0.3 publicado | [PR #9](https://github.com/InteractorGate/InteractorGate-Flutter/pull/9), [corrección #10](https://github.com/InteractorGate/InteractorGate-Flutter/pull/10), [Release v1.0.3](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.3), [workflow aprobado](https://github.com/InteractorGate/InteractorGate-Flutter/actions/runs/41676291838) |
-| 4 | Corregir los comportamientos de sugerencias que afectan E2 | Validado localmente para piloto: 46 pruebas y cuatro comprobaciones manuales aprobadas; exportación de 39 eventos contrastada | Publicación [v1.0.4](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.4) y resultado de Actions |
-| 5 | Completar el instrumento técnico de E1 | Pendiente; existe un benchmark inicial | Ejecutar y conservar las mediciones requeridas por E1 |
+| 4 | Corregir los comportamientos de sugerencias que afectan E2 | Cerrado para piloto; 46 pruebas y cuatro comprobaciones manuales aprobadas; exportación de 39 eventos contrastada | [Release v1.0.4](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.4), [workflow aprobado](https://github.com/InteractorGate/InteractorGate-Flutter/actions/runs/41679994667) |
+| 5 | Completar el instrumento técnico de E1 | Instrumento verificado funcionalmente en local: 19 pruebas Python, 46 Flutter y corridas enlazadas de 26+26 ensayos | Publicación [v1.0.5](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.5); baja precisión ocular, I-4 espontáneo y condiciones completas de E1 pendientes |
 | 6 | Completar la evaluación textual y el análisis | Pendiente | Comparar predictores y generar resultados por participante |
 
 “Implementado” indica que existe el cambio de software. “Verificado en entorno real” requiere ejecutar el flujo completo y conservar evidencia.
@@ -170,7 +170,13 @@ Instrucciones y listas completas: [ESTUDIO_E2.md](ESTUDIO_E2.md). Pruebas: [stud
 - Conservar también los ensayos sin seguimiento y reportar cómo se tratan en los denominadores.
 - Guardar resultados por participante y sesión, evitando sobrescribir archivos.
 
-**Punto de partida:** `InteractorGate-Flutter/sidecar/bench_precision.py`. Actualmente usa el motor calibrado, muestra la mirada y clasifica mediante la mediana de muestras; esos resultados no sustituyen todas las mediciones exigidas por E1.
+**Punto de partida:** el benchmark anterior de `InteractorGate-Flutter/sidecar/bench_precision.py` usaba solo el motor calibrado, mostraba la mirada y clasificaba mediante la mediana de muestras; esos resultados no sustituían todas las mediciones exigidas por E1.
+
+**Implementación 1.0.5:** el instrumento reemplaza ese benchmark por tareas separadas de puntos, celdas sin cursor, selección con cursor y observación. Compara CNN/ONNX genérica y ridge calibrado por condición, conserva muestras y fallos, clasifica activaciones y crea carpetas por participante/UUID. No sobrescribe la calibración de comunicación. Geometría, definición del error operativo, denominadores y comandos en [INSTRUMENTO_E1.md](INSTRUMENTO_E1.md).
+
+**Estado del piloto:** 19 pruebas Python y 46 pruebas Flutter aprobadas, análisis sin incidencias y ejecutable local comprobado con webcam. La corrida genérica de 26 ensayos y su continuación calibrada de 26 se conservan enlazadas por UUID/hash, con informes reconstruidos desde los eventos. Los 16 puntos aceptados y 531 muestras reprodujeron el ajuste guardado; 18 intentos fallidos de calibración permanecen registrados. La continuación terminó `completed`.
+
+**Resultado de desempeño:** precisión baja: I-2 de 1/8 para la CNN y 0/8 para el calibrado; I-3 de 6/8 y 7/7 selecciones incorrectas, respectivamente, con un timeout calibrado. Las cinco activaciones de observación calibrada fueron provocadas a propósito según confirmó el usuario; no validan I-4 espontáneo. El piloto utiliza luz natural, postura habitual, pantalla aproximada de 344 × 195 mm y cámara a 60 cm; ojos–pantalla de 62/63 cm y pausa entre corridas. Se valida el instrumento de registro, no la precisión requerida para participantes ni la comparación completa de E1. Faltan las condiciones de 50/70 cm y la revisión metodológica de la métrica angular. Evidencia y hashes en [INSTRUMENTO_E1.md](INSTRUMENTO_E1.md). Publicación 1.0.5 pendiente.
 
 **Otros archivos relevantes:** `sidecar/calibration.py`, `sidecar/eye_tracker.py`, `sidecar/gaze_cnn.py` y los módulos CNN del backend.
 

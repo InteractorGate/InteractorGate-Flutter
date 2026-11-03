@@ -73,6 +73,24 @@ celdas grandes por *dwell* (posar la mirada) y/o parpadeo.
 - Cierra apps que usen la cámara (OBS/Zoom/Teams) antes de calibrar.
 - Recalibra si mueves la cámara o cambian mucho las condiciones de luz.
 
+## Experimento técnico E1
+
+`bench_precision.py` es el instrumento E1: compara GazeCNN/ONNX genérica y
+MediaPipe con ridge ajustado por condición. Sustituye el benchmark que combinaba
+acierto abierto y error cerrado y descartaba ensayos sin rostro.
+
+```powershell
+python bench_precision.py --init-config e1_config.json
+python bench_precision.py --config e1_config.json
+python -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+En el ejecutable distribuido se usa `gaze_service.exe --e1-config <ficha.json>`.
+Ficha, reglas y límites: [INSTRUMENTO_E1.md](../docs/INSTRUMENTO_E1.md). Los datos
+se guardan en Documentos/InteractorGate/E1; no se sobrescribe la calibración del
+tablero. La medida angular es operacional en pantalla y no acredita el error
+nativo de MPIIGaze ni permite atribuir las diferencias solo a calibración.
+
 ## Pendiente
 - `gaze_server.py` (modo Mirada / TCP → chip "Mirada" en Flutter) aún usa la API
   antigua imaginada; falta reescribirlo sobre estos módulos.

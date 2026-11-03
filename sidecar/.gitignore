@@ -17,3 +17,5 @@ _eye_patch.png
 # Salidas de medida y copias de calibracion (se regeneran)
 resultados_precision.json
 calibration.backup-*.json
+e1_results/
+e1_config*.json

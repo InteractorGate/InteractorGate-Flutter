@@ -3,15 +3,19 @@
 #
 # Build:  .venv/Scripts/python.exe -m PyInstaller gaze_service.spec --noconfirm
 # Salida: dist/gaze_service/gaze_service.exe
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, copy_metadata
 
 # El modelo de MediaPipe (parche de ojo / iris) va junto al exe bajo models/.
-datas = [("models/face_landmarker.task", "models")]
+datas = [("models/face_landmarker.task", "models"),
+         ("models/gaze_cnn.onnx", "models"),
+         ("models/gaze_cnn.meta.json", "models")]
+for package in ("mediapipe", "opencv-python", "numpy", "onnxruntime"):
+    datas += copy_metadata(package)
 binaries = []
 hiddenimports = []
 
 # MediaPipe trae datos (.tflite/.binarypb) y binarios nativos: recolectar todo.
-for pkg in ("mediapipe",):
+for pkg in ("mediapipe", "onnxruntime"):
     d, b, h = collect_all(pkg)
     datas += d
     binaries += b
@@ -26,9 +30,9 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    # Modo Mouse NO usa estos: sacarlos aligera y evita fallos de empaquetado.
+    # E1 usa ONNX; los frameworks de entrenamiento siguen fuera del runtime.
     # (matplotlib/PIL SÍ hacen falta: mediapipe.drawing_utils los importa.)
-    excludes=["torch", "onnxruntime", "scipy", "tensorflow"],
+    excludes=["torch", "scipy", "tensorflow"],
     noarchive=False,
 )
 

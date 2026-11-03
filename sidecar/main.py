@@ -99,8 +99,19 @@ if __name__ == "__main__":
                     help="modo servicio: calibra si hace falta y corre modo Mouse indefinido")
     ap.add_argument("--duration", type=int, default=45, help="segundos de modo Mouse")
     ap.add_argument("--no-click", action="store_true", help="desactivar clic por parpadeo")
+    ap.add_argument("--e1-config", help="ejecutar el instrumento E1 con esta ficha JSON")
+    ap.add_argument("--e1-init-config", help="crear una plantilla de ficha E1 sin sobrescribir")
+    ap.add_argument("--e1-output", help="carpeta opcional de resultados E1")
     args = ap.parse_args()
-    if args.calibrate:
+    if args.e1_init_config:
+        from bench_precision import main as e1_main
+        e1_main(["--init-config", args.e1_init_config])
+    elif args.e1_config:
+        import json
+        from pathlib import Path
+        from bench_precision import run
+        run(json.loads(Path(args.e1_config).read_text(encoding="utf-8")), args.e1_output)
+    elif args.calibrate:
         run_calibration()
     elif args.service:
         run_service(click_on_blink=not args.no_click)
