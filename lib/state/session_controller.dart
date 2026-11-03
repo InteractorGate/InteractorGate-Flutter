@@ -66,7 +66,7 @@ class SessionController extends ChangeNotifier {
   }
 
   String? get sessionId => _sessionId;
-  bool get active => _sessionId != null && !_closing;
+  bool get active => _sessionId != null && !_closing && _endEventId == null;
 
   String text = '';
   List<String> suggestions = [];
@@ -425,6 +425,7 @@ class SessionController extends ChangeNotifier {
       });
       return true;
     } catch (error) {
+      if (_trialFinish == null) _finishRequestedAt = null;
       if (trialActive) _trialClock.start();
       studyError = error is StateError
           ? error.message

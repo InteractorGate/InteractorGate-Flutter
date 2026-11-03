@@ -117,7 +117,7 @@ Instrucciones y listas completas: [ESTUDIO_E2.md](ESTUDIO_E2.md). Pruebas: [stud
 
 ### Evidencia
 
-- Flutter: análisis sin incidencias y 38 pruebas aprobadas. Backend: 36 pruebas aprobadas.
+- Flutter: análisis sin incidencias y 39 pruebas aprobadas. Backend: 36 pruebas aprobadas.
 - Prueba HTTP/Mongo real: seis reenvíos concurrentes, una sola copia, aislamiento entre cuentas y conflicto 409 ante un payload distinto.
 - El usuario confirmó el piloto Windows local con MongoDB pausado y reanudado: pendientes conservados, cierre fallido sin perder el mensaje, recuperación y avance único.
 - Archivo exportado de la app contrastado con MongoDB: 53 eventos y dos ensayos, sin IDs o secuencias repetidos, sin huecos y textos finales reconstruidos coincidentes. También se verificó ausencia de solicitudes reales de predicción en la condición desactivada.
