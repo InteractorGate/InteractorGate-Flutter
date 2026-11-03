@@ -24,17 +24,19 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
+    if (_busy) return;
     if (_user.text.trim().isEmpty || _pass.text.isEmpty) return;
     setState(() => _busy = true);
-    final ok = await context
-        .read<AuthController>()
-        .login(_user.text.trim(), _pass.text);
+    final ok = await context.read<AuthController>().login(
+      _user.text.trim(),
+      _pass.text,
+    );
     if (!mounted) return;
     setState(() => _busy = false);
     if (!ok) {
-      final msg = context.read<AuthController>().error ?? 'Error al iniciar sesión';
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(msg)));
+      final msg =
+          context.read<AuthController>().error ?? 'Error al iniciar sesión';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -52,13 +54,18 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const Icon(Icons.remove_red_eye_outlined, size: 72),
                 const SizedBox(height: 12),
-                Text('InteractorGate',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineMedium),
+                Text(
+                  'InteractorGate',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
                 const SizedBox(height: 32),
                 TextField(
                   controller: _user,
-                  decoration: const InputDecoration(labelText: 'Usuario'),
+                  decoration: const InputDecoration(
+                    labelText: 'Código de participante',
+                    hintText: 'P01',
+                  ),
                   textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 16),
@@ -75,15 +82,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? const SizedBox(
                           height: 22,
                           width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2))
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Iniciar sesión'),
                 ),
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: _busy
                       ? null
-                      : () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => const RegisterScreen())),
+                      : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        ),
                   child: const Text('Crear una cuenta'),
                 ),
               ],

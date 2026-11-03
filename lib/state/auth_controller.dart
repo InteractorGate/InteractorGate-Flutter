@@ -1,82 +1,44 @@
 import 'package:flutter/foundation.dart';
 
-import '../config/api_config.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import 'session_controller.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
-/// Estado global de autenticación.
+/// Identifica al participante antes de abrir su sesión de comunicación.
 class AuthController extends ChangeNotifier {
-  AuthController(this._auth);
+  AuthController(this._auth, this._session);
 
   final AuthService _auth;
+  final SessionController _session;
 
   AuthStatus status = AuthStatus.unknown;
   User? user;
   String? error;
+  bool busy = false;
 
-  /// Al arrancar: intenta usar los tokens guardados para recuperar el perfil.
-  /// Si no hay sesión válida, hace auto-login con la cuenta demo embebida para
-  /// entrar directo al tablero (sin pantalla de login). El login manual queda
-  /// como fallback solo si el auto-login también falla.
   Future<void> bootstrap() async {
-    try {
-      user = await _auth.me();
-      status = AuthStatus.authenticated;
-    } catch (_) {
-      final ok = await _autoLoginDemo();
-      status = ok ? AuthStatus.authenticated : AuthStatus.unauthenticated;
-    }
-    notifyListeners();
-  }
-
-  /// Entra con la cuenta demo. Si no existe todavía en el backend, la registra
-  /// (el registro deja la sesión iniciada) y reintenta.
-  Future<bool> _autoLoginDemo() async {
-    try {
-      await _auth.login(ApiConfig.demoUsername, ApiConfig.demoPassword);
-      user = await _auth.me();
-      return true;
-    } catch (_) {
-      // La cuenta puede no estar creada aún: registrarla y volver a intentar.
-    }
-    try {
-      await _auth.register(
-        username: ApiConfig.demoUsername,
-        email: ApiConfig.demoEmail,
-        password: ApiConfig.demoPassword,
-        password2: ApiConfig.demoPassword,
-      );
-      await _auth.login(ApiConfig.demoUsername, ApiConfig.demoPassword);
-      user = await _auth.me();
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<bool> login(String username, String password) async {
+    if (busy || status != AuthStatus.unknown) return;
+    busy = true;
     error = null;
+    // Cada apertura requiere identificar al participante, incluso con tokens previos.
     try {
-      await _auth.login(username, password);
-      user = await _auth.me();
-      status = AuthStatus.authenticated;
-      notifyListeners();
-      return true;
-    } on ApiException catch (e) {
-      error = e.statusCode == 401
-          ? 'Usuario o contraseña incorrectos.'
-          : e.message;
-      notifyListeners();
-      return false;
+      await _auth.clearLocalSession();
+      status = AuthStatus.unauthenticated;
     } catch (_) {
-      error = 'No se pudo conectar con el servidor.';
+      error =
+          'No se pudo limpiar la autenticación anterior. '
+          'Reintenta antes de identificar al participante.';
+    } finally {
+      busy = false;
       notifyListeners();
-      return false;
     }
   }
+
+  Future<bool> login(String username, String password) =>
+      _signIn(() => _auth.login(username, password));
 
   Future<bool> register({
     required String username,
@@ -85,34 +47,72 @@ class AuthController extends ChangeNotifier {
     required String password2,
     String firstName = '',
     String lastName = '',
-  }) async {
+  }) => _signIn(() async {
+    await _auth.register(
+      username: username,
+      email: email,
+      password: password,
+      password2: password2,
+      firstName: firstName,
+      lastName: lastName,
+    );
+    await _auth.login(username, password);
+  });
+
+  Future<bool> _signIn(Future<void> Function() authenticate) async {
+    if (busy || status != AuthStatus.unauthenticated) return false;
+    busy = true;
     error = null;
+    notifyListeners();
     try {
-      await _auth.register(
-        username: username,
-        email: email,
-        password: password,
-        password2: password2,
-        firstName: firstName,
-        lastName: lastName,
-      );
-      // Registro exitoso → login automático.
-      return login(username, password);
+      await authenticate();
+      final participant = await _auth.me();
+      await _session.start();
+      user = participant;
+      status = AuthStatus.authenticated;
+      return true;
     } on ApiException catch (e) {
-      error = e.message;
-      notifyListeners();
-      return false;
+      error = e.statusCode == 401
+          ? 'Usuario o contraseña incorrectos.'
+          : e.message;
     } catch (_) {
-      error = 'No se pudo conectar con el servidor.';
+      error = 'No se pudo iniciar la sesión. Revisa la conexión y reintenta.';
+    } finally {
+      try {
+        if (status != AuthStatus.authenticated) {
+          await _auth.clearLocalSession();
+        }
+      } catch (_) {
+        status = AuthStatus.unknown;
+        error = 'No se pudo limpiar la autenticación anterior. Reintenta.';
+      }
+      busy = false;
       notifyListeners();
-      return false;
     }
+    return false;
   }
 
-  Future<void> logout() async {
-    await _auth.logout();
-    user = null;
-    status = AuthStatus.unauthenticated;
+  Future<bool> logout() async {
+    if (busy) return false;
+    if (status != AuthStatus.authenticated) return true;
+    busy = true;
+    error = null;
     notifyListeners();
+    try {
+      // El cierre y los eventos pendientes necesitan todavía el token del participante.
+      await _session.end();
+      await _auth.logout();
+      user = null;
+      status = AuthStatus.unauthenticated;
+      return true;
+    } catch (_) {
+      error =
+          'No se pudo confirmar el cierre de la sesión. '
+          'Revisa la conexión y vuelve a cerrar sesión.';
+      return false;
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
   }
 }

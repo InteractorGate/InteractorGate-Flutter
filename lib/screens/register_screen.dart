@@ -27,6 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _submit() async {
+    if (_busy) return;
     if (_user.text.trim().isEmpty ||
         _email.text.trim().isEmpty ||
         _pass.text.isEmpty) {
@@ -34,11 +35,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     setState(() => _busy = true);
     final ok = await context.read<AuthController>().register(
-          username: _user.text.trim(),
-          email: _email.text.trim(),
-          password: _pass.text,
-          password2: _pass2.text,
-        );
+      username: _user.text.trim(),
+      email: _email.text.trim(),
+      password: _pass.text,
+      password2: _pass2.text,
+    );
     if (!mounted) return;
     setState(() => _busy = false);
     if (ok) {
@@ -46,8 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } else {
       final msg =
           context.read<AuthController>().error ?? 'No se pudo registrar';
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(msg)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -66,12 +66,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 TextField(
                   controller: _user,
-                  decoration: const InputDecoration(labelText: 'Usuario'),
+                  decoration: const InputDecoration(
+                    labelText: 'Código de participante',
+                    hintText: 'P01',
+                  ),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _email,
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  decoration: const InputDecoration(
+                    labelText: 'Correo de estudio',
+                    hintText: 'p01@example.com',
+                    helperText:
+                        'Usa un correo de estudio, sin datos personales.',
+                  ),
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 16),
@@ -83,8 +91,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: _pass2,
-                  decoration:
-                      const InputDecoration(labelText: 'Repetir contraseña'),
+                  decoration: const InputDecoration(
+                    labelText: 'Repetir contraseña',
+                  ),
                   obscureText: true,
                   onSubmitted: (_) => _submit(),
                 ),
@@ -95,7 +104,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ? const SizedBox(
                           height: 22,
                           width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2))
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Registrarme'),
                 ),
               ],

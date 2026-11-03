@@ -1,3 +1,5 @@
+import 'dart:ui' show AppExitResponse;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -26,9 +28,12 @@ void main() {
   final sidecar = SidecarLauncher()..start();
 
   // --- Controladores de estado ---
-  final authController = AuthController(authService)..bootstrap();
-  final sessionController =
-      SessionController(predictionService, telemetryService)..start();
+  final sessionController = SessionController(
+    predictionService,
+    telemetryService,
+  );
+  final authController = AuthController(authService, sessionController)
+    ..bootstrap();
   final gazeBridge = GazeBridge()..connect();
 
   runApp(
@@ -40,6 +45,7 @@ void main() {
       ],
       child: _SidecarLifecycle(
         sidecar: sidecar,
+        auth: authController,
         child: const InteractorGateApp(),
       ),
     ),
@@ -49,9 +55,14 @@ void main() {
 /// Mata el sidecar cuando la app se cierra (en Windows los procesos hijo no se
 /// terminan automáticamente al cerrar el padre).
 class _SidecarLifecycle extends StatefulWidget {
-  const _SidecarLifecycle({required this.sidecar, required this.child});
+  const _SidecarLifecycle({
+    required this.sidecar,
+    required this.auth,
+    required this.child,
+  });
 
   final SidecarLauncher sidecar;
+  final AuthController auth;
   final Widget child;
 
   @override
@@ -64,6 +75,13 @@ class _SidecarLifecycleState extends State<_SidecarLifecycle>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  Future<AppExitResponse> didRequestAppExit() async {
+    if (!await widget.auth.logout()) return AppExitResponse.cancel;
+    widget.sidecar.stop();
+    return AppExitResponse.exit;
   }
 
   @override
