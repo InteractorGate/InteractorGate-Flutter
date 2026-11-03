@@ -130,6 +130,29 @@ class ExportTests(unittest.TestCase):
         self.assertTrue(all('session_sequence_gap_or_duplicate' in r['exclusion_reasons'] for r in rows))
         self.assertIsNone(summarize_e2(rows)[0]['randomization'])
 
+    def test_completed_empty_messages_are_not_valid_primary_transcriptions(self):
+        value=json.loads(self.entry['path'].read_text())
+        value['logs']=[e for e in value['logs'] if e['event_type'] in {'session_start','session_end','trial_start','trial_end'}]
+        for index,event in enumerate(value['logs'],1):
+            event['sequence']=index
+            if event.get('data'):
+                event['data']['target_phrase']=''
+                if event['event_type']=='trial_end':
+                    event['data']['final_text']=''
+        value['count']=len(value['logs'])
+        self.entry['path'].write_text(json.dumps(value))
+        rows,_=load_e2([self.entry])
+        self.assertTrue(all(not r['analysis_eligible'] and 'empty_message' in r['exclusion_reasons'] for r in rows))
+
+    def test_absent_owners_do_not_count_as_a_verified_identity(self):
+        value=json.loads(self.entry['path'].read_text())
+        for event in value['logs']:
+            event['user_id']=None
+            event['participant_id']=None
+        self.entry['path'].write_text(json.dumps(value))
+        rows,_=load_e2([self.entry])
+        self.assertTrue(all(not r['analysis_eligible'] and 'missing_event_owner' in r['exclusion_reasons'] for r in rows))
+
 
 class E1AnalysisTests(unittest.TestCase):
     def rows(self):

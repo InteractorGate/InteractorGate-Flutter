@@ -232,7 +232,7 @@ archivos reales. Transcribe `YO VOY` (seis caracteres), con tiempos sin predicci
 - Respuestas SUS sintéticas 4/2 alternadas: 75 puntos.
 - QUEST sintético: dispositivo 4, servicios 3 y total 11/3.
 
-Los 32 tests Python del sidecar incluyen esta comprobación, deduplicación,
+Los 34 tests Python del sidecar incluyen esta comprobación, deduplicación,
 exclusiones, OOV, pares incompatibles e I-4 no espontáneo. Las 46 pruebas Flutter
 y el análisis están aprobados. La generación source de tablas/figuras pasó con
 los archivos reales: tres ensayos E2 de práctica (ninguno principal), 156 filas
@@ -245,10 +245,10 @@ exactamente las mismas métricas. La publicación 1.0.6 queda pendiente de Actio
 
 Trazabilidad de esta validación local:
 
-- Ejemplo nativo: `129cda7d-9a4c-4c9c-ae2b-e04f8bcc394b`; SHA-256 de
-  `analysis.json`: `63279c33549ebed23e7a29b532097455daf563428e8907adb0bacc08e41675f6`.
-- Piloto nativo: `e5a759db-6f79-4271-86db-fbc93d06458c`; SHA-256 de
-  `analysis.json`: `d7504872bd0435015946e7b3bd9e613c4f7bf0a14d6e951946114dd67414ee89`.
+- Ejemplo nativo: `233ffcc8-32e3-4044-9d51-859ac7506f40`; SHA-256 de
+  `analysis.json`: `37798dda623df7b87b33c4a462c3e4cf3908f334f70a251c781f64735dbf5221`.
+- Piloto nativo: `a51b540b-ff6a-4ac3-893a-e82c00485a0f`; SHA-256 de
+  `analysis.json`: `26fc99ac2a3f377f0beffa47e89848f381b3399bd00d8c27f23700a9f637ac91`.
 
 Los datos originales y los resultados permanecen en `research/runs/`, excluido
 de Git. Las herramientas se entregan verificadas para el piloto; completar el

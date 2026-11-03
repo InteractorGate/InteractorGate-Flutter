@@ -70,6 +70,8 @@ def load_e2(entries):
             problems.append('unsupported_event_schema')
         if len({e.get('user_id') for e in events}) != 1:
             problems.append('mixed_event_owners')
+        if any(type(e.get('user_id')) is not int or e['user_id'] < 1 for e in events):
+            problems.append('missing_event_owner')
         if any(e.get('participant_id') != e.get('user_id') for e in events):
             problems.append('event_participant_owner_mismatch')
         groups = defaultdict(list)
@@ -150,6 +152,10 @@ def _trial_row(session, tid, records, session_problems):
         reasons.append('invalid_duration')
         duration = None
     target = first.get('target_phrase')
+    if not isinstance(target,str) or not normalize(target):
+        reasons.append('invalid_target')
+    if not normalize(text):
+        reasons.append('empty_message')
     transcription = isinstance(target,str) and normalize(text) == normalize(target)
     if not transcription:
         reasons.append('incorrect_transcription')
