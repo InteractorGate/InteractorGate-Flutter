@@ -15,9 +15,9 @@ class BlinkDetector:
         self._closed = 0
         self._last_blink = 0.0
 
-    def detect(self, openness):
+    def detect(self, openness, now=None):
         """Devuelve True en el frame donde se completa un parpadeo."""
-        now = time.time()
+        now = time.monotonic() if now is None else now
         blink = False
         if openness < self.threshold:
             self._closed += 1

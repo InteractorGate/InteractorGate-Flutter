@@ -54,6 +54,10 @@ jobs:
         working-directory: sidecar
         run: pip install -r requirements.txt pyinstaller==6.21.0
 
+      - name: Test instrumento E1
+        working-directory: sidecar
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+
       - name: Build sidecar (PyInstaller)
         working-directory: sidecar
         run: python -m PyInstaller gaze_service.spec --noconfirm
@@ -96,4 +100,6 @@ jobs:
             **Estudio E2 (piloto):** usar "Preparar estudio E2" para practica S1 y medicion S2/S3, con bloques alternados con y sin prediccion. Las frases son provisionales y requieren revision metodologica antes del estudio real.
             **Registros E2:** cola local cifrada con reenvio sin duplicar eventos, correcciones y sugerencias registradas, y opcion "Verificar y exportar sesion" para reconstruir los ensayos.
             **Continuaciones:** en el teclado, terminar una palabra y pulsar ESPACIO para pedir palabras siguientes. Cada edicion invalida las respuestas anteriores; aceptar agrega la continuacion con un solo espacio de separacion.
+            **Instrumento E1:** modo local para el investigador con CNN generica y motor calibrado, tareas separadas y registros por participante/sesion. Requiere ficha de pantalla y condiciones; ver docs/INSTRUMENTO_E1.md antes de interpretar resultados.
+            **Limite del piloto E1:** se verifico el registro, pero la precision ocular fue baja. No acredita desempeno para participantes; faltan las condiciones completas del protocolo y la observacion de falsas activaciones espontaneas.
             **Mirada:** calibracion (mirar los puntos) -> tablero. El cursor sigue la mirada; parpadear = clic.

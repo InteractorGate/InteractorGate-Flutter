@@ -120,6 +120,14 @@ El banco actual es **provisional de piloto**. No usar sus listas como instrument
 validado sin revisar su equivalencia. Las instrucciones, el banco de frases y
 las pruebas manuales están en [ESTUDIO_E2.md](docs/ESTUDIO_E2.md).
 
+## Instrumento técnico E1
+
+El sidecar incluye un modo de investigación para comparar la CNN genérica y el
+motor calibrado: fijación de puntos, celdas sin cursor, selección con cursor y
+observación de activaciones. Conserva los fallos de seguimiento y guarda evidencia
+local por participante y sesión, separada de E2. Preparación, denominadores y
+límites de la comparación en [INSTRUMENTO_E1.md](docs/INSTRUMENTO_E1.md).
+
 ## Continuaciones de texto
 
 La RNN propone palabras siguientes. En el teclado, termina la palabra y pulsa
