@@ -17,8 +17,8 @@ El plan organiza el trabajo técnico. No sustituye el protocolo de investigació
 
 | Bloque | Objetivo | Estado | Verificación pendiente |
 |---|---|---|---|
-| 1 | Separar participantes y sesiones | Validado en local y Azure | Consultar la publicación de la versión 1.0.1 en GitHub Actions y Releases |
-| 2 | Crear el modo de estudio para E2 | Pendiente | Ejecutar bloques con y sin predicción según el protocolo |
+| 1 | Separar participantes y sesiones | Cerrado; publicado en v1.0.1 | [Workflow aprobado](https://github.com/InteractorGate/InteractorGate-Flutter/actions/runs/41572180738) |
+| 2 | Crear el modo de estudio para E2 | Validado localmente para piloto: 27 pruebas y cuatro comprobaciones manuales aprobadas | Inspección directa de registros de Azure pendiente por conectividad; publicación v1.0.2 en Actions/Releases |
 | 3 | Registrar los datos para calcular indicadores | Pendiente | Reconstruir los ensayos y comprobar entrega y recuperación de eventos |
 | 4 | Corregir los comportamientos de sugerencias que afectan E2 | Pendiente; existe una protección parcial frente a respuestas antiguas | Probar respuestas fuera de orden y palabras incompletas |
 | 5 | Completar el instrumento técnico de E1 | Pendiente; existe un benchmark inicial | Ejecutar y conservar las mediciones requeridas por E1 |
@@ -67,15 +67,33 @@ El plan organiza el trabajo técnico. No sustituye el protocolo de investigació
 
 **Propósito:** ejecutar la comparación con y sin predicción sobre la misma interfaz, identificando cada ensayo.
 
-### Trabajo previsto
+### Implementado
 
-- Incorporar la selección de sesión, bloque y condición para el investigador.
-- Mostrar la frase objetivo y permitir iniciar, terminar o interrumpir un ensayo.
-- En la condición sin predicción, desactivar tanto las solicitudes como la visualización de sugerencias.
-- Mantener iguales los controles de escritura y los ajustes de selección entre condiciones.
-- Incorporar las 40 frases de 15 a 30 caracteres previstas en la tesis, distribuidas en listas equivalentes y separadas del corpus de entrenamiento.
-- Conservar la asignación contrabalanceada entre participantes y el orden aleatorio de los bloques de cinco frases.
-- Separar la práctica, de al menos diez mensajes, de los ensayos que se analizarán.
+- Selector del investigador para práctica S1 y medición S2/S3; el programa asigna automáticamente el bloque y la condición del ensayo conforme al plan.
+- Frase objetivo visible y controles para iniciar, terminar e interrumpir. Una interrupción conserva la posición y permite repetir la misma frase con otro UUID.
+- Sin predicción: no se llama al predictor, no se aceptan sugerencias y se conserva vacío el mismo espacio de 72 píxeles de la barra, sin desplazar el tablero.
+- Mismos controles de composición; dwell permanece fijo durante el estudio.
+- Banco **provisional de piloto**, autorizado por el usuario: 40 frases únicas en dos listas de 20, más diez frases distintas para práctica. Longitudes de medición: A, 17–27 caracteres (media 21,10); B, 18–26 (media 21,85). Ninguna de las 50 coincide exactamente, tras normalización, con las 103 secuencias del corpus actual. La equivalencia de frecuencia de palabras queda pendiente de revisión metodológica; no se declara demostrada.
+- Contrabalanceo por orden de inclusión confirmado por el investigador: impares usan A con predicción y pares usan B. Una semilla reproducible conserva el orden; S2 y S3 utilizan mitades distintas de cada lista, en cuatro bloques alternados de cinco por sesión, con condición inicial aleatorizada.
+- Diez mensajes de práctica, cinco por condición, separados mediante `practice=true`. Se bloquea S2 hasta completarlos y S3 hasta terminar S2.
+- Asignación y avance guardados por cuenta en el almacenamiento seguro del equipo. Al volver a entrar se conserva el siguiente ensayo; el cambio de participante carga otro progreso.
+- Envío confirmado de `settings`, `trial_start` y `trial_end` al backend existente, con UUID, frase, condición, lista, bloque, orden, sesión del protocolo y resultado. El cierre de cuenta o ventana interrumpe el ensayo activo antes de cerrar la sesión.
+
+### Evidencia y verificaciones pendientes
+
+- `flutter analyze --no-pub lib test`: sin incidencias.
+- `flutter test --no-pub`: **27 pruebas aprobadas**, incluidas 13 nuevas para este bloque.
+- Pruebas de ausencia de solicitudes sin predicción, transiciones con peticiones pendientes, errores de entrega, persistencia entre accesos, interrupciones y recorrido completo S2/S3 con 40 ensayos distintos.
+- Compilación Windows debug completada; aplicación abierta localmente y pantalla de identificación observada.
+- Verificación de interacción con `P01`: se observó por accesibilidad la práctica y el avance en S2. El 3 de noviembre el usuario confirmó las cuatro comprobaciones solicitadas: bloqueo de S2 antes de práctica, diez mensajes de práctica y al menos un bloque por condición en S2, interrupción/reinicio y reintento sin conexión conservando el mensaje, y recuperación del siguiente ensayo tras volver a entrar.
+- La consulta independiente de los registros del 3 de noviembre no pudo completarse: SQL rechaza la lectura directa por firewall y la conexión directa a Cosmos agota su tiempo de selección de servidor. No se modificaron reglas de red. La ausencia de solicitudes sin predicción está comprobada mediante pruebas del cliente; el contraste independiente de conteos de SQL no se considera aprobado.
+- [x] Completar la validación manual de práctica y de un bloque por condición en S2 (confirmado por el usuario con P01).
+- [ ] Comprobar en Azure la asociación y los metadatos de los ensayos de piloto.
+- Publicación del piloto: consultar el resultado de [Build & Release](https://github.com/InteractorGate/InteractorGate-Flutter/actions/workflows/release.yml) y el instalador en el [Release v1.0.2](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.2). El resultado y commit de publicación se registran en el archivo de seguimiento de la raíz del workspace.
+
+Instrucciones y listas completas: [ESTUDIO_E2.md](ESTUDIO_E2.md). Pruebas: [study_mode_test.dart](../test/study_mode_test.dart).
+
+**Límites:** el avance se conserva en este equipo, sin sincronización entre dispositivos. Un ACK perdido o un error local después de confirmar un evento puede producir límites duplicados al reintentar; la deduplicación y entrega durable de todas las acciones pertenecen al bloque 3. Una terminación forzada puede dejar un ensayo sin cierre. Las pausas, el máximo de 45 minutos y la separación entre días se supervisan por el investigador. El banco sigue siendo de piloto y debe volver a contrastarse con el corpus si este se amplía.
 
 **Archivos de partida:** `lib/state/session_controller.dart`, `lib/screens/home_screen.dart`, `lib/services/prediction_service.dart` y `lib/widgets/suggestion_bar.dart` dentro de Flutter.
 

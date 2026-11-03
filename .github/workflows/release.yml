@@ -93,4 +93,5 @@ jobs:
 
             **Requisitos:** Windows 10/11 (64-bit), webcam, internet.
             **Sesiones:** iniciar sesion con el codigo de participante. Cada acceso crea una sesion nueva; al cerrar se confirma su registro y se limpia el tablero.
+            **Estudio E2 (piloto):** usar "Preparar estudio E2" para practica S1 y medicion S2/S3, con bloques alternados con y sin prediccion. Las frases son provisionales y requieren revision metodologica antes del estudio real.
             **Mirada:** calibracion (mirar los puntos) -> tablero. El cursor sigue la mirada; parpadear = clic.

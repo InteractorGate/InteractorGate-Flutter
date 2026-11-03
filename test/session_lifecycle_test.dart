@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:interactor_gate/models/prediction.dart';
 import 'package:interactor_gate/models/user.dart';
+import 'package:interactor_gate/models/study_protocol.dart';
 import 'package:interactor_gate/services/api_client.dart';
 import 'package:interactor_gate/services/auth_service.dart';
 import 'package:interactor_gate/services/prediction_service.dart';
 import 'package:interactor_gate/services/telemetry_service.dart';
 import 'package:interactor_gate/services/token_store.dart';
+import 'package:interactor_gate/services/study_store.dart';
 import 'package:interactor_gate/state/auth_controller.dart';
 import 'package:interactor_gate/state/session_controller.dart';
 
@@ -67,12 +69,22 @@ class _Telemetry extends TelemetryService {
     required String eventType,
     Map<String, double>? gaze,
     String? selectedWord,
+    Map<String, dynamic>? data,
+    DateTime? timestamp,
     bool requireDelivery = false,
   }) async {
     events.add(eventType);
     if (failEvent == eventType) throw StateError('Offline');
     records.add((id: sessionId, type: eventType, mustDeliver: requireDelivery));
   }
+}
+
+class _StudyStore extends StudyStore {
+  @override
+  Future<StudyProgress?> load(int participantId) async => null;
+
+  @override
+  Future<void> save(int participantId, StudyProgress progress) async {}
 }
 
 class _Predictions extends PredictionService {
@@ -125,7 +137,11 @@ void main() {
     service = _Auth(events);
     telemetry = _Telemetry(events);
     predictions = _Predictions();
-    session = SessionController(predictions, telemetry);
+    session = SessionController(
+      predictions,
+      telemetry,
+      studyStore: _StudyStore(),
+    );
     auth = AuthController(service, session);
   });
 

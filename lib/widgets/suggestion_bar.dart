@@ -11,6 +11,7 @@ class SuggestionBar extends StatelessWidget {
     this.loading = false,
     this.dwellSeconds = 1.2,
     this.dwellEnabled = true,
+    this.enabled = true,
   });
 
   final List<String> suggestions;
@@ -18,9 +19,11 @@ class SuggestionBar extends StatelessWidget {
   final bool loading;
   final double dwellSeconds;
   final bool dwellEnabled;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
+    if (!enabled) return const SizedBox(height: 72);
     if (loading) {
       return const SizedBox(
         height: 72,
