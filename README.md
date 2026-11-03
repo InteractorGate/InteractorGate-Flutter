@@ -120,6 +120,14 @@ El banco actual es **provisional de piloto**. No usar sus listas como instrument
 validado sin revisar su equivalencia. Las instrucciones, el banco de frases y
 las pruebas manuales están en [ESTUDIO_E2.md](docs/ESTUDIO_E2.md).
 
+## Evaluación y análisis de la tesis
+
+El modo de investigación puede analizar exportaciones E1/E2 y respuestas SUS/QUEST,
+generar tablas CSV y figuras por sesión, y abrir un informe HTML local. Conserva
+exclusiones y separa datos de piloto, sintéticos y población objetivo. La evaluación
+textual offline compara una RNN experimental y un bigrama sin cambiar el predictor
+desplegado. Métodos, comandos y límites en [ANALISIS_E1_E2.md](docs/ANALISIS_E1_E2.md).
+
 ## Instrumento técnico E1
 
 El sidecar incluye un modo de investigación para comparar la CNN genérica y el

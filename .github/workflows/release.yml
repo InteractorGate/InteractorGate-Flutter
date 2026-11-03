@@ -54,7 +54,7 @@ jobs:
         working-directory: sidecar
         run: pip install -r requirements.txt pyinstaller==6.21.0
 
-      - name: Test instrumento E1
+      - name: Test instrumentos y analisis
         working-directory: sidecar
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
@@ -102,4 +102,5 @@ jobs:
             **Continuaciones:** en el teclado, terminar una palabra y pulsar ESPACIO para pedir palabras siguientes. Cada edicion invalida las respuestas anteriores; aceptar agrega la continuacion con un solo espacio de separacion.
             **Instrumento E1:** modo local para el investigador con CNN generica y motor calibrado, tareas separadas y registros por participante/sesion. Requiere ficha de pantalla y condiciones; ver docs/INSTRUMENTO_E1.md antes de interpretar resultados.
             **Limite del piloto E1:** se verifico el registro, pero la precision ocular fue baja. No acredita desempeno para participantes; faltan las condiciones completas del protocolo y la observacion de falsas activaciones espontaneas.
+            **Analisis del estudio:** modo local de investigacion para tablas CSV, figuras e informe HTML de E1/E2 y puntuaciones SUS/QUEST. Conserva exclusiones y separa pilotos, datos sinteticos y poblacion objetivo; ver docs/ANALISIS_E1_E2.md. No hay conclusiones de eficacia sin datos elegibles ni prueba de aleatorizacion sin un espacio de asignacion valido.
             **Mirada:** calibracion (mirar los puntos) -> tablero. El cursor sigue la mirada; parpadear = clic.
