@@ -102,8 +102,27 @@ if __name__ == "__main__":
     ap.add_argument("--e1-config", help="ejecutar el instrumento E1 con esta ficha JSON")
     ap.add_argument("--e1-init-config", help="crear una plantilla de ficha E1 sin sobrescribir")
     ap.add_argument("--e1-output", help="carpeta opcional de resultados E1")
+    ap.add_argument("--analysis-config", help="analizar registros con este manifiesto JSON")
+    ap.add_argument("--analysis-init-config", help="crear plantilla de manifiesto de analisis")
+    ap.add_argument("--analysis-output", help="carpeta opcional de resultados de analisis")
+    ap.add_argument("--questionnaires-template", help="crear CSV vacio para respuestas SUS/QUEST")
     args = ap.parse_args()
-    if args.e1_init_config:
+    if args.analysis_config or args.analysis_init_config or args.questionnaires_template:
+        from analyze_study import main as analysis_main
+        argv = []
+        if args.analysis_init_config:
+            argv += ["--init-manifest", args.analysis_init_config]
+        elif args.questionnaires_template:
+            argv += ["--init-questionnaires", args.questionnaires_template]
+        else:
+            argv += ["--manifest", args.analysis_config]
+            if args.analysis_output:
+                argv += ["--output", args.analysis_output]
+        folder = analysis_main(argv)
+        if folder is not None:
+            import webbrowser
+            webbrowser.open((folder/"report.html").resolve().as_uri())
+    elif args.e1_init_config:
         from bench_precision import main as e1_main
         e1_main(["--init-config", args.e1_init_config])
     elif args.e1_config:

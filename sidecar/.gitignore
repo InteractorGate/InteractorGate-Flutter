@@ -19,3 +19,5 @@ resultados_precision.json
 calibration.backup-*.json
 e1_results/
 e1_config*.json
+analysis_manifest*.json
+questionnaires_input*.csv
