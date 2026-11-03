@@ -17,7 +17,7 @@ El plan organiza el trabajo técnico. No sustituye el protocolo de investigació
 
 | Bloque | Objetivo | Estado | Verificación pendiente |
 |---|---|---|---|
-| 1 | Separar participantes y sesiones | Implementado; pruebas automatizadas y manuales aprobadas | Comprobar eventos en Azure y publicar la versión 1.0.1 |
+| 1 | Separar participantes y sesiones | Validado en local y Azure | Consultar la publicación de la versión 1.0.1 en GitHub Actions y Releases |
 | 2 | Crear el modo de estudio para E2 | Pendiente | Ejecutar bloques con y sin predicción según el protocolo |
 | 3 | Registrar los datos para calcular indicadores | Pendiente | Reconstruir los ensayos y comprobar entrega y recuperación de eventos |
 | 4 | Corregir los comportamientos de sugerencias que afectan E2 | Pendiente; existe una protección parcial frente a respuestas antiguas | Probar respuestas fuera de orden y palabras incompletas |
@@ -51,12 +51,12 @@ El plan organiza el trabajo técnico. No sustituye el protocolo de investigació
 - Se instalaron Visual Studio Build Tools 2022 con C++, CMake, Windows SDK y ATL, y se habilitó el modo de desarrollador para los enlaces de los plugins.
 - El endpoint `/healthz/` del backend configurado en Azure respondió `{"status":"ok"}`. Esto comprueba disponibilidad HTTP, no el flujo de autenticación ni la persistencia de eventos.
 - El usuario confirmó como satisfactorias las pruebas manuales 1–8: apertura, contraseña incorrecta, acceso, cambio de participante, cierre sin conexión, recuperación de conexión, cierre normal de ventana y cierre de ventana sin conexión. Aclaró posteriormente que los códigos disponibles en Azure son `P00`, `P01` y `P02`; la comprobación del cambio de participante utiliza `P01` y `P02`.
-- Consulta de solo lectura en Azure del 2 de noviembre de 2026: se encontraron las cuentas `P01` y `P02` en SQL y 48 eventos de selección asociados en Cosmos, pero ningún `session_start` ni `session_end` de esas cuentas, incluso sin filtro de fecha. Se abrió la compilación local actual para repetir un acceso y cierre con cada cuenta antes de publicar; la persistencia de los límites de sesión sigue pendiente.
+- Verificación de solo lectura en Azure del 2 de noviembre de 2026, tras repetir el flujo con la compilación local actual: `P01` y `P02` tienen una sesión completa cada una. Se comprobaron cuatro eventos de inicio y cierre, UUID v4 distintos, ningún cruce entre cuentas, ningún evento duplicado, ningún cierre anterior al inicio y ninguna sesión abierta en la consulta del día. La consulta solo leyó identificadores y límites de sesión; no se exportaron mensajes, coordenadas ni credenciales.
 
 ### Para cerrar la verificación en entorno real
 
 - [x] Entrar como P01, escribir, cerrar sesión y entrar como P02 (confirmado por el usuario).
-- [ ] Comprobar en el servidor que cada cuenta tiene un UUID distinto y los eventos de inicio y cierre correspondientes.
+- [x] Comprobar en el servidor que cada cuenta tiene un UUID distinto y los eventos de inicio y cierre correspondientes (consulta directa de SQL y Cosmos).
 - [x] Confirmar que P02 encuentra el tablero vacío y los ajustes reiniciados (confirmado por el usuario).
 - [x] Desconectar la red antes del cierre y comprobar que la app conserva la sesión y permite reintentarlo (confirmado por el usuario).
 - [x] Probar el cierre normal de la ventana en Windows y su cancelación sin conexión (confirmado por el usuario).
@@ -204,4 +204,4 @@ El usuario ha autorizado este flujo de commit y push condicionado a una validaci
 
 Los workflows actuales se activan con cambios en `main`: el backend despliega en Azure mediante `.github/workflows/deploy.yml`; Flutter construye el instalador y publica un GitHub Release mediante `.github/workflows/release.yml`.
 
-**Situación actual del bloque 1:** implementación, pruebas automatizadas, compilación Windows y pruebas interactivas 1–8 terminadas. Se está preparando la versión 1.0.1; falta comprobar los eventos en Azure antes de publicar. La sesión de Azure CLI requirió renovar la autenticación.
+**Situación del bloque 1:** implementación, 14 pruebas automatizadas, compilación Windows, pruebas interactivas 1–8 y comprobación de los eventos en Azure terminadas. Cambios en el [PR #7](https://github.com/InteractorGate/InteractorGate-Flutter/pull/7). La publicación del instalador 1.0.1 se comprueba mediante el resultado de [Build & Release](https://github.com/InteractorGate/InteractorGate-Flutter/actions/workflows/release.yml) y la presencia de `InteractorGate-Setup.exe` en el [Release v1.0.1](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.1); la validación local por sí sola no acredita esa publicación.
