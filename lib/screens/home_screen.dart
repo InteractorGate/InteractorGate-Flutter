@@ -20,6 +20,7 @@ class HomeScreen extends StatelessWidget {
     final session = context.watch<SessionController>();
     final auth = context.watch<AuthController>();
     final gaze = context.watch<GazeBridge>();
+    final suggestionRequest = session.suggestionPresentationId;
 
     return Scaffold(
       appBar: AppBar(
@@ -93,7 +94,11 @@ class HomeScreen extends StatelessWidget {
               loading: session.loadingSuggestions,
               dwellSeconds: session.dwellSeconds,
               dwellEnabled: session.dwellEnabled,
-              onPick: session.applySuggestion,
+              onPick: (phrase) {
+                if (suggestionRequest != null) {
+                  session.applySuggestion(phrase, requestId: suggestionRequest);
+                }
+              },
               presentationId: session.suggestionPresentationId,
               onPresented: session.suggestionsPresented,
             ),

@@ -95,4 +95,5 @@ jobs:
             **Sesiones:** iniciar sesion con el codigo de participante. Cada acceso crea una sesion nueva; al cerrar se confirma su registro y se limpia el tablero.
             **Estudio E2 (piloto):** usar "Preparar estudio E2" para practica S1 y medicion S2/S3, con bloques alternados con y sin prediccion. Las frases son provisionales y requieren revision metodologica antes del estudio real.
             **Registros E2:** cola local cifrada con reenvio sin duplicar eventos, correcciones y sugerencias registradas, y opcion "Verificar y exportar sesion" para reconstruir los ensayos.
+            **Continuaciones:** en el teclado, terminar una palabra y pulsar ESPACIO para pedir palabras siguientes. Cada edicion invalida las respuestas anteriores; aceptar agrega la continuacion con un solo espacio de separacion.
             **Mirada:** calibracion (mirar los puntos) -> tablero. El cursor sigue la mirada; parpadear = clic.
