@@ -120,6 +120,16 @@ El banco actual es **provisional de piloto**. No usar sus listas como instrument
 validado sin revisar su equivalencia. Las instrucciones, el banco de frases y
 las pruebas manuales están en [ESTUDIO_E2.md](docs/ESTUDIO_E2.md).
 
+## Continuaciones de texto
+
+La RNN propone palabras siguientes. En el teclado, termina la palabra y pulsa
+**ESPACIO** para pedir continuaciones; mientras escribes una palabra parcial no
+se muestran sugerencias. Los botones de palabras completas solicitan directamente
+la continuación. Aceptar una sugerencia añade su texto con un solo espacio de
+separación, sin reemplazar lo escrito, y solicita la continuación siguiente.
+Cualquier edición descarta las respuestas anteriores. Regla y prueba local en
+[SUGERENCIAS_E2.md](docs/SUGERENCIAS_E2.md).
+
 ## Registro y exportación de ensayos
 
 **Verificar y exportar sesión** consulta los registros mediante la API de la propia

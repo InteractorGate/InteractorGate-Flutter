@@ -280,7 +280,7 @@ void main() {
       await auth.bootstrap();
       await auth.login('P01', 'password');
       predictions.response = Completer<Prediction>();
-      final typing = session.type('A');
+      final typing = session.type('A ');
       await Future<void>.delayed(Duration.zero);
       final closing = auth.logout();
       await Future<void>.delayed(Duration.zero);
@@ -288,7 +288,7 @@ void main() {
       expect(session.active, isFalse);
       expect(events, isNot(contains('session_end')));
       await session.insertWord('must not be added');
-      expect(session.text, 'A');
+      expect(session.text, 'A ');
       expect(await auth.login('P02', 'password'), isFalse);
 
       predictions.response!.complete(

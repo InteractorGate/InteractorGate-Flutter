@@ -108,7 +108,10 @@ void main() {
       await session.insertWord('AGUA');
       await session.suggestionsPresented(session.suggestionPresentationId!);
       await session.suggestionsPresented(session.suggestionPresentationId!);
-      await session.applySuggestion('por favor');
+      await session.applySuggestion(
+        'por favor',
+        requestId: session.suggestionPresentationId!,
+      );
       expect(session.text, 'AGUA por favor');
       expect(await session.finishTrial(), isTrue);
       await services.single.flush();

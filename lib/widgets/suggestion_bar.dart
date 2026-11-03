@@ -39,7 +39,7 @@ class SuggestionBar extends StatelessWidget {
         height: 72,
         child: Center(
           child: Text(
-            'Escribe para ver sugerencias…',
+            'Termina una palabra y pulsa ESPACIO para ver continuaciones',
             style: TextStyle(color: Colors.white38, fontSize: 16),
           ),
         ),
@@ -58,6 +58,7 @@ class SuggestionBar extends StatelessWidget {
           for (final s in suggestions)
             Expanded(
               child: Padding(
+                key: ValueKey((presentationId, s)),
                 padding: const EdgeInsets.all(4),
                 child: DwellButton(
                   dwellSeconds: dwellSeconds,

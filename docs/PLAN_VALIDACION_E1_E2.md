@@ -19,8 +19,8 @@ El plan organiza el trabajo técnico. No sustituye el protocolo de investigació
 |---|---|---|---|
 | 1 | Separar participantes y sesiones | Cerrado; publicado en v1.0.1 | [Workflow aprobado](https://github.com/InteractorGate/InteractorGate-Flutter/actions/runs/41572180738) |
 | 2 | Crear el modo de estudio para E2 | Validado localmente para piloto: 27 pruebas y cuatro comprobaciones manuales aprobadas | Inspección directa de registros de Azure pendiente por conectividad; publicación v1.0.2 en Actions/Releases |
-| 3 | Registrar los datos para calcular indicadores | Validado en local; backend v2 desplegado y comprobado en Azure | Cliente: [PR #9](https://github.com/InteractorGate/InteractorGate-Flutter/pull/9), [Release v1.0.3](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.3) y resultado de Actions |
-| 4 | Corregir los comportamientos de sugerencias que afectan E2 | Pendiente; existe una protección parcial frente a respuestas antiguas | Probar respuestas fuera de orden y palabras incompletas |
+| 3 | Registrar los datos para calcular indicadores | Cerrado para piloto; backend v2 desplegado y cliente 1.0.3 publicado | [PR #9](https://github.com/InteractorGate/InteractorGate-Flutter/pull/9), [corrección #10](https://github.com/InteractorGate/InteractorGate-Flutter/pull/10), [Release v1.0.3](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.3), [workflow aprobado](https://github.com/InteractorGate/InteractorGate-Flutter/actions/runs/41676291838) |
+| 4 | Corregir los comportamientos de sugerencias que afectan E2 | Validado localmente para piloto: 46 pruebas y cuatro comprobaciones manuales aprobadas; exportación de 39 eventos contrastada | Publicación [v1.0.4](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.4) y resultado de Actions |
 | 5 | Completar el instrumento técnico de E1 | Pendiente; existe un benchmark inicial | Ejecutar y conservar las mediciones requeridas por E1 |
 | 6 | Completar la evaluación textual y el análisis | Pendiente | Comparar predictores y generar resultados por participante |
 
@@ -142,7 +142,13 @@ Instrucciones y listas completas: [ESTUDIO_E2.md](ESTUDIO_E2.md). Pruebas: [stud
 - Verificar que limpiar el texto, terminar un ensayo o cambiar de condición invalida las peticiones anteriores.
 - Fijar una regla de inserción y mantenerla durante todos los ensayos.
 
-**Estado parcial:** el bloque 1 añadió comprobaciones del UUID, de la actividad de la sesión y del contexto antes de aplicar una respuesta. Eso protege la separación de sesiones, pero no acredita que todos los casos de concurrencia y escritura parcial estén resueltos.
+**Implementación del piloto 1.0.4:** cada edición persistida invalida la respuesta anterior. La revisión se captura dentro de la cola de ediciones; una respuesta o un error solo puede modificar la barra si mantiene sesión, revisión, texto y condición vigentes. La aceptación exige el ID de la respuesta mostrada, y una respuesta nueva reinicia el dwell aunque repita una etiqueta.
+
+**Regla fija:** el teclado solicita palabras siguientes tras ESPACIO. Los botones de palabras completas y la aceptación de sugerencias solicitan una continuación directamente. Aceptar añade un solo espacio de separación; no reemplaza ni completa una palabra parcial. Se conserva el mismo comportamiento de escritura en la condición sin predicción.
+
+**Validación automática:** análisis de Flutter sin incidencias, 46 pruebas aprobadas y compilación Windows debug contra localhost completada. Se verificaron respuestas inversas, borrado y vuelta al mismo texto, limpieza, errores antiguos, aceptación antigua con texto repetido, transición a la condición sin predicción y reinicio de dwell.
+
+**Validación manual:** el usuario aprobó las cuatro comprobaciones con `LOCAL_B4`, S1 y orden de inclusión 2. Se contrastaron 39 eventos y un ensayo coherente contra MongoDB local: IDs únicos, sin huecos, texto reconstruido coincidente y dos sugerencias aceptadas. Las seis solicitudes reales del predictor en SQLite contienen palabras completas, sin solicitar `QUI`. Publicación 1.0.4 pendiente. Detalle y hash de la evidencia: [SUGERENCIAS_E2.md](SUGERENCIAS_E2.md). Se utilizó ratón y datos ficticios.
 
 **Archivos de partida:** `lib/state/session_controller.dart`, `lib/services/prediction_service.dart` y `ig-django-backend/ai_modules/rnn/infer.py`.
 

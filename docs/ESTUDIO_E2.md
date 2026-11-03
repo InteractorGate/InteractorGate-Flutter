@@ -18,7 +18,7 @@ La lista A tiene una media de 21,10 caracteres (17–27) y B de 21,85 (18–26),
 6. **Interrumpir ensayo** registra el texto parcial y el estado `interrupted`, sin avanzar la frase. Un nuevo inicio crea otro UUID. Se puede pausar entre ensayos. Cambiar de sesión o volver al tablero libre requiere terminar o interrumpir primero el ensayo activo.
 7. Cerrar sesión o la ventana interrumpe un ensayo activo antes de registrar el cierre de la sesión. Si falla la entrega, se conserva el estado para reintentar.
 
-Con predicción se utiliza el servicio actual. Sin predicción se bloquean las solicitudes y la aceptación de sugerencias y se reserva el mismo espacio vacío de la barra. El teclado, las palabras y el dwell son los mismos; el ajuste de dwell queda bloqueado durante el estudio. Las decisiones sobre el predictor definitivo y las palabras incompletas siguen en los bloques 4 y 6.
+Con predicción se utiliza el servicio actual. En el teclado, terminar una palabra y pulsar **ESPACIO** solicita palabras siguientes; no se completa una palabra parcial. Los botones de palabras completas y la aceptación de una continuación pueden solicitar la siguiente. La aceptación conserva lo escrito e inserta un solo espacio antes de la continuación. Regla fija desde 1.0.4: [SUGERENCIAS_E2.md](SUGERENCIAS_E2.md). Sin predicción se bloquean las solicitudes y la aceptación de sugerencias y se reserva el mismo espacio vacío de la barra. El teclado, las palabras y el dwell son los mismos; el ajuste de dwell queda bloqueado durante el estudio. La elección del predictor definitivo corresponde al bloque 6.
 
 El investigador supervisa pausas cada diez minutos, máximo de 45 minutos por sesión, separación de al menos un día y suspensión ante fatiga o malestar. El programa permite elegir S2/S3 el mismo día para el piloto técnico; eso no equivale a cumplir el calendario del protocolo.
 
@@ -29,7 +29,7 @@ El investigador supervisa pausas cada diez minutos, máximo de 45 minutos por se
 - `trial_end`: mismos identificadores, estado completado/interrumpido, texto final y duración local de composición con reloj monotónico. La duración comienza tras confirmar el inicio y se detiene al solicitar el fin; no incluye la espera de la confirmación final.
 - Los eventos del banco llevan `provisional=true`. El backend asocia `user_id` al token autenticado.
 
-El avance y la asignación se guardan por cuenta en el almacenamiento seguro del equipo. Los resultados de ensayo quedan en Azure. El bloque 3 incorporará instrumentación de todas las acciones, recuperación y deduplicación. Un ACK perdido o un error al guardar el avance local puede duplicar límites al reintentar; una terminación forzada puede dejar un ensayo abierto. No mezclar los datos de este piloto con resultados de participantes objetivo.
+El avance y la asignación se guardan por cuenta en el almacenamiento seguro del equipo. Los resultados de ensayo se entregan al backend configurado (Azure en la app distribuible). El bloque 3 incorporó instrumentación de acciones, recuperación y deduplicación: [TELEMETRIA_E2.md](TELEMETRIA_E2.md). Una terminación forzada puede dejar un ensayo abierto. No mezclar los datos de este piloto con resultados de participantes objetivo ni combinar ensayos de distintas reglas de sugerencias para evaluar eficacia.
 
 ## Prueba manual de aceptación
 

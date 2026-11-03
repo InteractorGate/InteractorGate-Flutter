@@ -170,8 +170,12 @@ class SessionController extends ChangeNotifier {
   }
 
   void _clearComposition() {
-    _predictionRevision++;
     text = '';
+    _invalidateSuggestions();
+  }
+
+  void _invalidateSuggestions() {
+    _predictionRevision++;
     suggestions = [];
     loadingSuggestions = false;
     _suggestionRequest = null;
@@ -202,7 +206,7 @@ class SessionController extends ChangeNotifier {
     }
   }
 
-  Future<void> _mutate(Future<void> Function() action) {
+  Future<T> _mutate<T>(Future<T> Function() action) {
     final result = _edits.then((_) => action());
     _edits = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
     return result;
@@ -237,7 +241,7 @@ class SessionController extends ChangeNotifier {
   Future<void> type(String char) {
     final clock = Stopwatch()..start();
     return _run((id) async {
-      await _mutate(() async {
+      final revision = await _mutate(() async {
         final next = text + char;
         await _edit(
           id,
@@ -249,8 +253,9 @@ class SessionController extends ChangeNotifier {
         );
         text = next;
         notifyListeners();
+        return _predictionRevision;
       });
-      await _refreshSuggestions(id, clock);
+      await _refreshSuggestions(id, clock, revision);
     });
   }
 
@@ -258,15 +263,16 @@ class SessionController extends ChangeNotifier {
 
   Future<void> backspace() => _run((id) async {
     final clock = Stopwatch()..start();
-    await _mutate(() async {
-      if (text.isEmpty) return;
+    final revision = await _mutate(() async {
+      if (text.isEmpty) return _predictionRevision;
       final characters = text.runes.toList()..removeLast();
       final next = String.fromCharCodes(characters);
       await _edit(id, 'delete', 'backspace', next, 1, '');
       text = next;
       notifyListeners();
+      return _predictionRevision;
     });
-    await _refreshSuggestions(id, clock);
+    await _refreshSuggestions(id, clock, revision);
   });
 
   Future<void> clear() => _run(
@@ -279,7 +285,7 @@ class SessionController extends ChangeNotifier {
 
   Future<void> insertWord(String word) => _run((id) async {
     final clock = Stopwatch()..start();
-    await _mutate(() async {
+    final revision = await _mutate(() async {
       final next = text.isEmpty ? word : '${text.trimRight()} $word';
       await _edit(
         id,
@@ -291,36 +297,42 @@ class SessionController extends ChangeNotifier {
       );
       text = next;
       notifyListeners();
+      return _predictionRevision;
     });
-    await _refreshSuggestions(id, clock);
+    await _refreshSuggestions(id, clock, revision, completeWord: true);
   });
 
-  Future<void> applySuggestion(String phrase) => _run(
-    (id) => _mutate(() async {
-      if (!predictionEnabled ||
-          loadingSuggestions ||
-          !suggestions.contains(phrase)) {
-        return;
-      }
-      final next = text.isEmpty ? phrase : '${text.trimRight()} $phrase';
-      await _edit(
-        id,
-        'selection',
-        'suggestion',
-        next,
-        text.runes.length - text.trimRight().runes.length,
-        text.isEmpty ? phrase : ' $phrase',
-        extra: {
-          'suggestion_rank': suggestions.indexOf(phrase) + 1,
-          if (_suggestionRequest != null) 'request_id': _suggestionRequest,
-        },
-      );
-      _predictionRevision++;
-      text = next;
-      suggestions = [];
-      notifyListeners();
-    }),
-  );
+  Future<void> applySuggestion(String phrase, {required String requestId}) =>
+      _run((id) async {
+        final clock = Stopwatch()..start();
+        final revision = await _mutate(() async {
+          if (!predictionEnabled ||
+              loadingSuggestions ||
+              requestId != _suggestionRequest ||
+              !suggestions.contains(phrase)) {
+            return null;
+          }
+          final next = text.isEmpty ? phrase : '${text.trimRight()} $phrase';
+          await _edit(
+            id,
+            'selection',
+            'suggestion',
+            next,
+            text.runes.length - text.trimRight().runes.length,
+            text.isEmpty ? phrase : ' $phrase',
+            extra: {
+              'suggestion_rank': suggestions.indexOf(phrase) + 1,
+              if (_suggestionRequest != null) 'request_id': _suggestionRequest,
+            },
+          );
+          text = next;
+          notifyListeners();
+          return _predictionRevision;
+        });
+        if (revision != null) {
+          await _refreshSuggestions(id, clock, revision, completeWord: true);
+        }
+      });
 
   Map<String, dynamic> _contextData() => {
     if (trialActive) ..._trialData(studyEntry!),
@@ -344,17 +356,29 @@ class SessionController extends ChangeNotifier {
     int removed,
     String inserted, {
     Map<String, dynamic> extra = const {},
-  }) => _action(id, type, {
-    'action': action,
-    'text_length': next.runes.length,
-    'removed_characters': removed,
-    if (trialActive) 'inserted_text': inserted,
-    ...extra,
-  });
+  }) async {
+    await _action(id, type, {
+      'action': action,
+      'text_length': next.runes.length,
+      'removed_characters': removed,
+      if (trialActive) 'inserted_text': inserted,
+      ...extra,
+    });
+    _invalidateSuggestions();
+  }
 
-  Future<void> _refreshSuggestions(String id, Stopwatch clock) async {
-    if (!predictionEnabled || _sessionId != id) return;
-    final revision = ++_predictionRevision;
+  Future<void> _refreshSuggestions(
+    String id,
+    Stopwatch clock,
+    int revision, {
+    bool completeWord = false,
+  }) async {
+    if (!predictionEnabled ||
+        _sessionId != id ||
+        revision != _predictionRevision ||
+        (!completeWord && !text.endsWith(' '))) {
+      return;
+    }
     final context = text.trim();
     if (context.isEmpty) {
       suggestions = [];

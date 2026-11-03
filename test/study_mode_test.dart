@@ -244,7 +244,7 @@ void main() {
           expect(predictions.calls, before);
           expect(session.suggestions, isEmpty);
           final text = session.text;
-          await session.applySuggestion('una respuesta');
+          await session.applySuggestion('una respuesta', requestId: 'obsolete');
           expect(session.text, text);
         } else {
           expect(predictions.calls, greaterThan(before));
@@ -392,14 +392,14 @@ void main() {
       }
       await session.startTrial();
       predictions.pending = Completer<Prediction>();
-      final typing = session.type('HOLA');
+      final typing = session.type('HOLA ');
       await Future<void>.delayed(Duration.zero);
       final finishing = session.finishTrial();
       await Future<void>.delayed(Duration.zero);
       expect(session.studyBusy, isTrue);
       expect(session.canCompose, isFalse);
       await session.type('NO');
-      expect(session.text, 'HOLA');
+      expect(session.text, 'HOLA ');
       predictions.pending!.complete(
         const Prediction(suggestions: ['old'], confidence: .5),
       );
