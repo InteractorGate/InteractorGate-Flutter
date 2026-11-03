@@ -74,4 +74,6 @@ Para simular indisponibilidad de entrega: `docker pause ig-block3-mongo`. Reanud
 
 Publicar primero el backend con el contrato v2 y después la app. Un cliente nuevo conserva los eventos y bloquea la confirmación si el servidor antiguo no devuelve su ID y propietario.
 
+La preparación del backend alinea la instalación de PyTorch CPU con el pin 2.13.0 existente y actualiza dnspython a 2.9.1 para corregir la alerta de parser DNS reportada por GitHub. Su política de ramas exige pasar por `develop` antes de `main`.
+
 La cola y el avance son locales, sin sincronización entre dispositivos. Se conservan hasta 10000 pendientes por cuenta; al alcanzar el límite no se aplica una edición sin guardarla. La exportación admite hasta 10000 eventos por sesión. No hay borrado automático de pendientes. Las cuentas necesitan autenticación válida para recuperar su propia cola. Una terminación forzada puede dejar un ensayo abierto; el resumen lo señala, sin inventar un cierre. La recuperación de colas y cierres tras reinicio está cubierta por pruebas automatizadas; la prueba manual de indisponibilidad no terminó el proceso de la app.
