@@ -58,6 +58,10 @@ class _Auth extends AuthService {
 }
 
 class _Telemetry extends TelemetryService {
+  @override
+  Future<void> bindParticipant(int owner) async {}
+  @override
+  Future<void> flush() async {}
   _Telemetry(this.events) : super(ApiClient(TokenStore()));
   final List<String> events;
   final records = <({String id, String type, bool mustDeliver})>[];
@@ -72,6 +76,8 @@ class _Telemetry extends TelemetryService {
     Map<String, dynamic>? data,
     DateTime? timestamp,
     bool requireDelivery = false,
+    String? eventId,
+    bool retainUntilCommitted = false,
   }) async {
     events.add(eventType);
     if (failEvent == eventType) throw StateError('Offline');
@@ -99,32 +105,7 @@ class _Predictions extends PredictionService {
   }
 }
 
-class _OfflineApi extends ApiClient {
-  _OfflineApi() : super(TokenStore());
-
-  @override
-  Future<Json> postJson(String path, Object body, {bool auth = true}) async {
-    throw ApiException(503, 'Offline');
-  }
-}
-
 void main() {
-  test(
-    'session boundary failures are propagated instead of silently discarded',
-    () async {
-      final telemetry = TelemetryService(_OfflineApi());
-      await telemetry.log(sessionId: 's', eventType: 'selection');
-      await expectLater(
-        telemetry.log(
-          sessionId: 's',
-          eventType: 'session_end',
-          requireDelivery: true,
-        ),
-        throwsA(isA<ApiException>()),
-      );
-    },
-  );
-
   late List<String> events;
   late _Auth service;
   late _Telemetry telemetry;
@@ -156,7 +137,7 @@ void main() {
     expect(auth.user, isNull);
     expect(events, ['tokens.clear']);
     await session.type('A');
-    await session.logKeySelection('A');
+
     expect(session.sessionId, isNull);
     expect(session.text, isEmpty);
     expect(telemetry.records, isEmpty);
@@ -297,6 +278,7 @@ void main() {
       await auth.login('P01', 'password');
       predictions.response = Completer<Prediction>();
       final typing = session.type('A');
+      await Future<void>.delayed(Duration.zero);
       final closing = auth.logout();
       await Future<void>.delayed(Duration.zero);
       expect(auth.busy, isTrue);

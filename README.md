@@ -16,7 +16,8 @@ lib/
     api_client.dart         # HTTP + Bearer JWT + refresh automático (401→refresh→retry)
     auth_service.dart       # register / login / me / logout
     prediction_service.dart # POST /api/predictions/ (RNN de texto)
-    telemetry_service.dart  # POST /api/logs/ (acciones best-effort; límites confirmados)
+    telemetry_service.dart  # cola cifrada + confirmación de /api/logs/
+    outbox_store.dart       # eventos pendientes separados por cuenta y backend
     token_store.dart        # tokens en almacenamiento seguro (Windows Credential Manager)
     gaze_bridge.dart        # cliente TCP del sidecar de rastreo ocular (opcional)
   state/                    # AuthController, SessionController (ChangeNotifier)
@@ -86,9 +87,10 @@ La app funciona **con o sin** el sidecar de mirada:
    solicita el mismo cierre de sesión antes de salir.
 
 Una terminación forzada o un corte de energía no garantizan el envío del cierre.
-Los eventos de selección siguen siendo best-effort; su entrega durable pertenece
-al bloque de instrumentación de telemetría. Las peticiones HTTP tienen un límite
-de 15 segundos por intento.
+Los eventos se conservan en una cola cifrada hasta confirmar su ID y propietario.
+Las peticiones HTTP tienen un límite de 15 segundos por intento. Un cierre de
+ensayo fallido conserva su contenido original hasta reintentar y confirmar el
+avance local.
 
 ## Verificación de sesiones
 
@@ -117,3 +119,16 @@ alternados de cinco con y sin predicción.
 El banco actual es **provisional de piloto**. No usar sus listas como instrumento
 validado sin revisar su equivalencia. Las instrucciones, el banco de frases y
 las pruebas manuales están en [ESTUDIO_E2.md](docs/ESTUDIO_E2.md).
+
+## Registro y exportación de ensayos
+
+**Verificar y exportar sesión** consulta los registros mediante la API de la propia
+cuenta y guarda un JSON en `Documentos/InteractorGate/E2`. El resumen reconstruye
+los textos y señala huecos, duplicaciones o ensayos abiertos. La cola permite
+seguir escribiendo durante una interrupción de entrega; iniciar o cerrar ensayos
+requiere confirmación.
+
+Contrato, evidencia de la prueba local y límites en
+[TELEMETRIA_E2.md](docs/TELEMETRIA_E2.md). Para una validación aislada puede usarse
+`--dart-define=IG_API_BASE_URL=http://127.0.0.1:8000`; la compilación distribuible
+continúa apuntando a Azure por defecto. Publicar primero el backend v2.

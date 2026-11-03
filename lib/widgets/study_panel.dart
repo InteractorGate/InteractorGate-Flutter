@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/study_protocol.dart';
 import '../state/session_controller.dart';
+import 'telemetry_report_button.dart';
 
 /// Controles del investigador, separados del tablero de composición.
 class StudyPanel extends StatelessWidget {
@@ -43,6 +44,7 @@ class StudyPanel extends StatelessWidget {
               session.studyError!,
               style: const TextStyle(color: Colors.amber),
             ),
+          TelemetryReportButton(session: session, participantCode: participantCode),
           if (plan == null)
             Align(
               alignment: Alignment.centerRight,
@@ -104,7 +106,7 @@ class StudyPanel extends StatelessWidget {
                       child: const Text('Terminar mensaje'),
                     ),
                     OutlinedButton(
-                      onPressed: busy
+                      onPressed: busy || session.finalizingTrial
                           ? null
                           : () => session.finishTrial(interrupted: true),
                       child: const Text('Interrumpir ensayo'),

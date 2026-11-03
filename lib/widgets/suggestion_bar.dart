@@ -12,6 +12,8 @@ class SuggestionBar extends StatelessWidget {
     this.dwellSeconds = 1.2,
     this.dwellEnabled = true,
     this.enabled = true,
+    this.presentationId,
+    this.onPresented,
   });
 
   final List<String> suggestions;
@@ -20,6 +22,8 @@ class SuggestionBar extends StatelessWidget {
   final double dwellSeconds;
   final bool dwellEnabled;
   final bool enabled;
+  final String? presentationId;
+  final ValueChanged<String>? onPresented;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +44,12 @@ class SuggestionBar extends StatelessWidget {
           ),
         ),
       );
+    }
+    final id = presentationId;
+    if (id != null && onPresented != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) onPresented!(id);
+      });
     }
     return SizedBox(
       height: 72,

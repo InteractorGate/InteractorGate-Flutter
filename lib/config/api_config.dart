@@ -10,7 +10,12 @@ class ApiConfig {
   static const String prodBaseUrl =
       'https://ig-backend-tesis.azurewebsites.net';
 
-  static String get baseUrl => useProd ? prodBaseUrl : devBaseUrl;
+  static const _override = String.fromEnvironment('IG_API_BASE_URL');
+  static String get baseUrl => _override.isNotEmpty
+      ? _override
+      : useProd
+      ? prodBaseUrl
+      : devBaseUrl;
 
   /// Sidecar de rastreo ocular (proceso Python) — socket TCP local.
   static const String gazeHost = '127.0.0.1';

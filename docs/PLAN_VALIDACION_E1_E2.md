@@ -19,7 +19,7 @@ El plan organiza el trabajo técnico. No sustituye el protocolo de investigació
 |---|---|---|---|
 | 1 | Separar participantes y sesiones | Cerrado; publicado en v1.0.1 | [Workflow aprobado](https://github.com/InteractorGate/InteractorGate-Flutter/actions/runs/41572180738) |
 | 2 | Crear el modo de estudio para E2 | Validado localmente para piloto: 27 pruebas y cuatro comprobaciones manuales aprobadas | Inspección directa de registros de Azure pendiente por conectividad; publicación v1.0.2 en Actions/Releases |
-| 3 | Registrar los datos para calcular indicadores | Pendiente | Reconstruir los ensayos y comprobar entrega y recuperación de eventos |
+| 3 | Registrar los datos para calcular indicadores | Validado en local; backend v2 desplegado y comprobado en Azure | Cliente: [PR #9](https://github.com/InteractorGate/InteractorGate-Flutter/pull/9), [Release v1.0.3](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.3) y resultado de Actions |
 | 4 | Corregir los comportamientos de sugerencias que afectan E2 | Pendiente; existe una protección parcial frente a respuestas antiguas | Probar respuestas fuera de orden y palabras incompletas |
 | 5 | Completar el instrumento técnico de E1 | Pendiente; existe un benchmark inicial | Ejecutar y conservar las mediciones requeridas por E1 |
 | 6 | Completar la evaluación textual y el análisis | Pendiente | Comparar predictores y generar resultados por participante |
@@ -105,16 +105,24 @@ Instrucciones y listas completas: [ESTUDIO_E2.md](ESTUDIO_E2.md). Pruebas: [stud
 
 **Propósito:** reconstruir lo ocurrido en cada ensayo sin completar información manualmente después de las pruebas.
 
-### Trabajo previsto
+### Implementado y verificado
 
-- Registrar participante, sesión, ensayo, bloque y condición.
-- Registrar frase objetivo, texto final, inicio, fin, interrupciones y duración local mediante un reloj monotónico.
-- Distinguir letras, espacios, borrados, limpieza, cambios de modo y aceptación de sugerencias.
-- Registrar las sugerencias mostradas, su posición y las que se acepten.
-- Medir la latencia desde la entrada hasta la presentación de la sugerencia en pantalla.
-- Enviar la hora del evento del cliente, conservando por separado la recepción en el servidor.
-- Conservar los eventos hasta confirmar su entrega y usar identificadores para evitar duplicados al reintentarlos.
-- Comprobar que la telemetría no contiene imágenes ni datos personales innecesarios.
+- Cola cifrada por cuenta y backend, persistida antes de aplicar las ediciones. Reenvío secuencial y recuperación al autenticarse de nuevo con el mismo propietario.
+- UUID por evento, secuencia de sesión, contexto de ensayo y relojes de cliente/servidor separados. Inserciones, espacios, palabras, borrados, limpiezas, cambios de modo y aceptación por posición.
+- Registro de solicitudes y de sugerencias efectivamente presentadas, con latencia hasta el frame que las muestra.
+- Cierre de ensayo inmutable durante los reintentos, conservado hasta confirmar también el avance local. Recuperación de ese cierre tras reinicio sin duplicar el resultado.
+- Backend idempotente para el contrato v2, compatible con eventos legados. Payload diferente con la misma clave obtiene 409; reenvío idéntico conserva el documento y la primera recepción.
+- Verificación y exportación por la API de la cuenta, con reconstrucción del texto, detección de huecos, secuencias repetidas y ensayos incompletos.
+- Sin imágenes; campos acotados. La telemetría del tablero libre omite texto de inserciones; las frases de E2 se identifican como práctica/piloto según corresponda.
+
+### Evidencia
+
+- Flutter: análisis sin incidencias y 38 pruebas aprobadas. Backend: 36 pruebas aprobadas.
+- Prueba HTTP/Mongo real: seis reenvíos concurrentes, una sola copia, aislamiento entre cuentas y conflicto 409 ante un payload distinto.
+- El usuario confirmó el piloto Windows local con MongoDB pausado y reanudado: pendientes conservados, cierre fallido sin perder el mensaje, recuperación y avance único.
+- Archivo exportado de la app contrastado con MongoDB: 53 eventos y dos ensayos, sin IDs o secuencias repetidos, sin huecos y textos finales reconstruidos coincidentes. También se verificó ausencia de solicitudes reales de predicción en la condición desactivada.
+- Detalle, contrato y límites: [TELEMETRIA_E2.md](TELEMETRIA_E2.md). La validación local no se presenta como verificación del despliegue en Azure.
+- Backend publicado tras la revisión requerida: [PR #62](https://github.com/InteractorGate/ig-django-backend/pull/62), commit `128595c615e861b51a2c5c66c530f33045a29e3b`. [Despliegue #41672313415](https://github.com/InteractorGate/ig-django-backend/actions/runs/41672313415) aprobado; `/healthz/` respondió `{"status":"ok","telemetry_schema":2}`. Esta comprobación acredita el contrato activo, no sustituye la prueba integrada local con los datos del piloto.
 
 **Archivos de partida:** `lib/services/telemetry_service.dart`, `lib/state/session_controller.dart`, los callbacks de `home_screen.dart` y los serializadores y vistas de `ig-django-backend/interaction_logs`.
 
