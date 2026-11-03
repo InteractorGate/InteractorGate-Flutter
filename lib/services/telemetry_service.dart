@@ -112,6 +112,7 @@ class TelemetryService extends ChangeNotifier {
             jsonDecode(
                   jsonEncode({
                     'event_id': id,
+                    'participant_id': owner,
                     'sequence': sequence,
                     'session_id': sessionId,
                     'event_type': eventType,

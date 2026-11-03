@@ -6,6 +6,8 @@ Cada evento tiene UUID v4, secuencia de la sesión y hora UTC del cliente. Antes
 
 La app reintenta la entrega cada cinco segundos y muestra el número de pendientes. Una respuesta de éxito solo retira el evento si confirma su UUID, propietario y esquema v2. Un error de almacenamiento impide aplicar la edición correspondiente. Los límites de sesión y ensayo exigen entrega confirmada.
 
+El payload v2 incluye `participant_id`, que corresponde al ID del perfil autenticado, no al orden de inclusión del estudio. El servidor lo compara con el token antes de escribir; si pertenece a otra cuenta, responde 403 y conserva el evento en el cliente.
+
 El servidor usa una clave de documento determinista por usuario y evento. Un reenvío idéntico devuelve el evento original, incluida la primera hora de recepción; no inserta otro. Un identificador reutilizado con otro contenido devuelve 409. Los clientes anteriores siguen aceptándose como esquema legado, sin afirmar que sus registros permiten la reconstrucción completa.
 
 El cierre de ensayo queda congelado al primer intento: texto, duración, estado e ID permanecen estables. El evento se conserva hasta confirmar el servidor y guardar el avance local. Si la app se reinicia entre esos pasos, la misma cuenta recupera ese cierre y aplica el avance una sola vez.
@@ -37,8 +39,8 @@ La exportación cubre la sesión autenticada actual. Conviene guardarla antes de
 
 ## Validación local realizada el 3 de noviembre de 2026
 
-- Análisis de Flutter sin incidencias; 37 pruebas de Flutter aprobadas.
-- Suite completa del backend: 35 pruebas aprobadas.
+- Análisis de Flutter sin incidencias; 38 pruebas de Flutter aprobadas.
+- Suite completa del backend: 36 pruebas aprobadas.
 - HTTP real con SQLite y MongoDB local: seis reenvíos concurrentes guardaron una sola copia; otro usuario no pudo leer la sesión, y un contenido diferente con el mismo ID obtuvo 409.
 - App Windows abierta contra localhost con cuentas ficticias `LOCAL_B3` y `LOCAL_B3_2`.
 - Consulta de las solicitudes reales: ninguna en la condición sin predicción y solicitudes presentes en la condición con predicción.

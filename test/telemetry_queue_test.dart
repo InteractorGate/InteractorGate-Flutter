@@ -47,6 +47,9 @@ class DeliveryApi extends ApiClient {
     requests.add(payload);
     if (rejectStatus != null) throw ApiException(rejectStatus!, 'retry later');
     if (offline) throw ApiException(503, 'offline');
+    if (payload['participant_id'] != owner) {
+      throw ApiException(403, 'wrong account');
+    }
     final key = '$owner:${payload['event_id']}';
     final existing = accepted[key];
     if (existing != null) expect(payload, existing);
@@ -267,4 +270,30 @@ void main() {
     await service.flush();
     expect(service.pendingCount, 0);
   });
+
+  test(
+    'a token replaced by another account cannot misattribute queued data',
+    () async {
+      final service = make();
+      await service.bindParticipant(1);
+      api.offline = true;
+      await expectLater(
+        service.log(
+          sessionId: 's',
+          eventType: 'selection',
+          requireDelivery: true,
+        ),
+        throwsA(isA<ApiException>()),
+      );
+      api.offline = false;
+      api.owner = 2;
+      await expectLater(service.flush(), throwsA(isA<ApiException>()));
+      expect(api.accepted, isEmpty);
+      expect(service.pendingCount, 1);
+      api.owner = 1;
+      await service.flush();
+      expect(api.accepted.length, 1);
+      expect(service.pendingCount, 0);
+    },
+  );
 }
