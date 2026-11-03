@@ -26,9 +26,25 @@ class _AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = context.watch<AuthController>().status;
-    switch (status) {
+    final auth = context.watch<AuthController>();
+    switch (auth.status) {
       case AuthStatus.unknown:
+        if (auth.error != null) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(auth.error!),
+                  FilledButton(
+                    onPressed: auth.bootstrap,
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       case AuthStatus.authenticated:
         return const HomeScreen();

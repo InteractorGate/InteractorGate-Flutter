@@ -10,11 +10,10 @@ class AuthService {
   final TokenStore _tokens;
 
   Future<void> login(String username, String password) async {
-    final data = await _api.postJson(
-      '/api/users/login/',
-      {'username': username, 'password': password},
-      auth: false,
-    );
+    final data = await _api.postJson('/api/users/login/', {
+      'username': username,
+      'password': password,
+    }, auth: false);
     await _tokens.save(
       access: data['access'] as String,
       refresh: data['refresh'] as String,
@@ -29,24 +28,22 @@ class AuthService {
     String firstName = '',
     String lastName = '',
   }) async {
-    await _api.postJson(
-      '/api/users/register/',
-      {
-        'username': username,
-        'email': email,
-        'password': password,
-        'password2': password2,
-        if (firstName.isNotEmpty) 'first_name': firstName,
-        if (lastName.isNotEmpty) 'last_name': lastName,
-      },
-      auth: false,
-    );
+    await _api.postJson('/api/users/register/', {
+      'username': username,
+      'email': email,
+      'password': password,
+      'password2': password2,
+      if (firstName.isNotEmpty) 'first_name': firstName,
+      if (lastName.isNotEmpty) 'last_name': lastName,
+    }, auth: false);
   }
 
   Future<User> me() async {
     final data = await _api.getJson('/api/users/me/');
     return User.fromJson(data);
   }
+
+  Future<void> clearLocalSession() => _tokens.clear();
 
   Future<void> logout() async {
     final refresh = await _tokens.refresh;
@@ -57,6 +54,6 @@ class AuthService {
         // aunque falle el blacklist, limpiamos los tokens locales.
       }
     }
-    await _tokens.clear();
+    await clearLocalSession();
   }
 }

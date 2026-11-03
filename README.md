@@ -28,15 +28,19 @@ sidecar/
 
 ## Requisitos
 
-- Flutter 3.32+ (`C:\Users\LIAN\Desktop\FlutterSDK\flutter`).
+- Flutter 3.44.0, compatible con las versiones fijadas en `pubspec.lock`.
+- Visual Studio o Build Tools 2022 con C++ x64/x86, CMake, Windows SDK y ATL.
+  ATL es necesario para compilar `flutter_secure_storage_windows` (`atlstr.h`).
+- Modo de desarrollador de Windows habilitado para los enlaces de los plugins.
 - El **backend** corriendo (local en `http://localhost:8000` o Azure).
   Cambia el destino en `lib/config/api_config.dart` (`useProd`).
 
 ## Cómo correr
 
 ```powershell
-$env:Path = "C:\Users\LIAN\Desktop\FlutterSDK\flutter\bin;$env:Path"
-flutter pub get
+# Si usas el SDK temporal preparado en este equipo:
+$env:Path = "$env:TEMP\ig-flutter-block1-sdk\bin;$env:Path"
+flutter pub get --enforce-lockfile
 flutter run -d windows
 ```
 
@@ -65,10 +69,39 @@ La app funciona **con o sin** el sidecar de mirada:
 
 ## Flujo de integración con el backend
 
-1. Registro/login → tokens JWT guardados de forma segura.
-2. `Authorization: Bearer` en cada llamada; ante `401`, refresh automático con
+1. Al abrir se limpia la autenticación local previa y se pide identificar al
+   participante. Usar una cuenta seudónima distinta por persona (por ejemplo,
+   `P01`, `P02`); no se crea ni utiliza una cuenta demo compartida.
+   Para registrar una cuenta, usar un correo de estudio sin datos personales
+   (por ejemplo, `p01@example.com`).
+2. Registro/login → perfil autenticado → envío confirmado de `session_start` con
+   un UUID nuevo. Solo entonces se abre el tablero.
+3. `Authorization: Bearer` en cada llamada; ante `401`, refresh automático con
    rotación de refresh token.
-3. `session_start` al abrir; predicciones de texto para autocompletar frases;
-   eventos `selection`/`dwell` a `/api/logs/`.
+4. Al cerrar sesión se esperan las operaciones pendientes y se confirma
+   `session_end` antes de revocar los tokens. Después se limpian texto,
+   sugerencias, UUID y ajustes del tablero. El siguiente login crea otra sesión.
+5. Si falla el inicio, se mantiene el login. Si falla el cierre, se conserva la
+   sesión y se muestra un error para reintentar. El cierre normal de la ventana
+   solicita el mismo cierre de sesión antes de salir.
+
+Una terminación forzada o un corte de energía no garantizan el envío del cierre.
+Los eventos de selección siguen siendo best-effort; su entrega durable pertenece
+al bloque de instrumentación de telemetría. Las peticiones HTTP tienen un límite
+de 15 segundos por intento.
+
+## Verificación de sesiones
+
+El alcance, estado y criterios de cierre de los seis bloques se mantienen en el
+[plan de validación E1 y E2](docs/PLAN_VALIDACION_E1_E2.md).
+
+```powershell
+flutter test test/session_lifecycle_test.dart
+```
+
+Prueba manual: entrar como `P01`, escribir, cerrar sesión y entrar como `P02`.
+El tablero debe estar vacío y los registros deben tener UUID distintos y el
+`user_id` de la cuenta correspondiente. Repetir con la red desconectada al cerrar:
+la app debe conservar la sesión y permitir reintentar, sin cambiar de participante.
 
 Contrato completo: `docs/API.md` del repo `ig-django-backend`.

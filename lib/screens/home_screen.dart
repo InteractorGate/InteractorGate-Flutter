@@ -17,12 +17,12 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<SessionController>();
-    final auth = context.read<AuthController>();
+    final auth = context.watch<AuthController>();
     final gaze = context.watch<GazeBridge>();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('InteractorGate — ${auth.user?.displayName ?? ''}'),
+        title: Text('InteractorGate — ${auth.user?.username ?? ''}'),
         actions: [
           _GazeStatusChip(connected: gaze.connected),
           Padding(
@@ -40,7 +40,7 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout),
-            onPressed: () => auth.logout(),
+            onPressed: auth.busy ? null : () => auth.logout(),
           ),
         ],
       ),
@@ -48,6 +48,15 @@ class HomeScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            if (auth.error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  auth.error!,
+                  style: const TextStyle(color: Colors.amber),
+                ),
+              ),
+            if (auth.busy) const LinearProgressIndicator(),
             ComposedTextBar(text: session.text),
             const SizedBox(height: 12),
             SuggestionBar(
@@ -59,26 +68,29 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: session.boardMode == BoardMode.words
-                  ? BigCellBoard(
-                      dwellSeconds: session.dwellSeconds,
-                      dwellEnabled: session.dwellEnabled,
-                      onWord: session.insertWord,
-                      onKeyboard: session.toggleBoardMode,
-                      onBackspace: session.backspace,
-                    )
-                  : DwellKeyboard(
-                      dwellSeconds: session.dwellSeconds,
-                      dwellEnabled: session.dwellEnabled,
-                      onKey: (ch) {
-                        session.type(ch);
-                        session.logKeySelection(ch);
-                      },
-                      onSpace: session.space,
-                      onBackspace: session.backspace,
-                      onClear: session.clear,
-                      onWords: session.toggleBoardMode,
-                    ),
+              child: IgnorePointer(
+                ignoring: auth.busy || !session.active,
+                child: session.boardMode == BoardMode.words
+                    ? BigCellBoard(
+                        dwellSeconds: session.dwellSeconds,
+                        dwellEnabled: session.dwellEnabled,
+                        onWord: session.insertWord,
+                        onKeyboard: session.toggleBoardMode,
+                        onBackspace: session.backspace,
+                      )
+                    : DwellKeyboard(
+                        dwellSeconds: session.dwellSeconds,
+                        dwellEnabled: session.dwellEnabled,
+                        onKey: (ch) {
+                          session.type(ch);
+                          session.logKeySelection(ch);
+                        },
+                        onSpace: session.space,
+                        onBackspace: session.backspace,
+                        onClear: session.clear,
+                        onWords: session.toggleBoardMode,
+                      ),
+              ),
             ),
           ],
         ),

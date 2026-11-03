@@ -30,13 +30,20 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.44.0'
           channel: stable
           cache: true
 
       - name: Flutter deps
         run: |
           flutter config --enable-windows-desktop
-          flutter pub get
+          flutter pub get --enforce-lockfile
+
+      - name: Analyze Flutter
+        run: flutter analyze --no-pub lib test
+
+      - name: Test Flutter
+        run: flutter test --no-pub
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
@@ -85,4 +92,5 @@ jobs:
             > Al no estar firmado, Windows puede mostrar "Windows protegio tu PC": **Mas informacion -> Ejecutar de todos modos**.
 
             **Requisitos:** Windows 10/11 (64-bit), webcam, internet.
-            **Primer uso:** calibracion (mirar los puntos) -> tablero. El cursor sigue la mirada; parpadear = clic.
+            **Sesiones:** iniciar sesion con el codigo de participante. Cada acceso crea una sesion nueva; al cerrar se confirma su registro y se limpia el tablero.
+            **Mirada:** calibracion (mirar los puntos) -> tablero. El cursor sigue la mirada; parpadear = clic.

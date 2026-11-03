@@ -28,6 +28,7 @@ class ApiClient {
 
   final TokenStore _tokens;
   final http.Client _http = http.Client();
+  static const _timeout = Duration(seconds: 15);
 
   Uri _uri(String path) => Uri.parse('${ApiConfig.baseUrl}$path');
 
@@ -57,11 +58,11 @@ class ApiClient {
       }
     }
 
-    var res = await once();
+    var res = await once().timeout(_timeout);
     if (res.statusCode == 401 && auth) {
       final refreshed = await _refresh();
       if (!refreshed) throw SessionExpired();
-      res = await once();
+      res = await once().timeout(_timeout);
     }
     return res;
   }
@@ -70,11 +71,13 @@ class ApiClient {
     final refresh = await _tokens.refresh;
     if (refresh == null) return false;
 
-    final res = await _http.post(
-      _uri('/api/token/refresh/'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'refresh': refresh}),
-    );
+    final res = await _http
+        .post(
+          _uri('/api/token/refresh/'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'refresh': refresh}),
+        )
+        .timeout(_timeout);
     if (res.statusCode != 200) return false;
 
     final data = jsonDecode(res.body) as Json;
