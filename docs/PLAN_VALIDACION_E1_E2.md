@@ -19,7 +19,7 @@ El plan organiza el trabajo técnico. No sustituye el protocolo de investigació
 |---|---|---|---|
 | 1 | Separar participantes y sesiones | Cerrado; publicado en v1.0.1 | [Workflow aprobado](https://github.com/InteractorGate/InteractorGate-Flutter/actions/runs/41572180738) |
 | 2 | Crear el modo de estudio para E2 | Validado localmente para piloto: 27 pruebas y cuatro comprobaciones manuales aprobadas | Inspección directa de registros de Azure pendiente por conectividad; publicación v1.0.2 en Actions/Releases |
-| 3 | Registrar los datos para calcular indicadores | Implementado y validado en local: 38 pruebas Flutter, 36 backend y piloto con pausa/reanudación de MongoDB | Publicar primero el backend v2 y después el instalador 1.0.3 |
+| 3 | Registrar los datos para calcular indicadores | Implementado y validado en local: 38 pruebas Flutter, 36 backend y piloto con pausa/reanudación de MongoDB | Publicación: [backend PR #62](https://github.com/InteractorGate/ig-django-backend/pull/62) antes de [cliente PR #9](https://github.com/InteractorGate/InteractorGate-Flutter/pull/9) |
 | 4 | Corregir los comportamientos de sugerencias que afectan E2 | Pendiente; existe una protección parcial frente a respuestas antiguas | Probar respuestas fuera de orden y palabras incompletas |
 | 5 | Completar el instrumento técnico de E1 | Pendiente; existe un benchmark inicial | Ejecutar y conservar las mediciones requeridas por E1 |
 | 6 | Completar la evaluación textual y el análisis | Pendiente | Comparar predictores y generar resultados por participante |
