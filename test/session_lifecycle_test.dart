@@ -262,6 +262,9 @@ void main() {
     expect(auth.status, AuthStatus.authenticated);
     expect(session.sessionId, id);
     expect(session.text, 'agua');
+    expect(session.active, isFalse);
+    await session.type('IGNORED');
+    expect(session.text, 'agua');
     expect(events, isNot(contains('logout:P01')));
     expect(auth.error, isNotNull);
     expect(await auth.login('P02', 'password'), isFalse);

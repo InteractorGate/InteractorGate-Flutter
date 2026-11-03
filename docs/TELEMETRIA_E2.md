@@ -39,7 +39,7 @@ La exportación cubre la sesión autenticada actual. Conviene guardarla antes de
 
 ## Validación local realizada el 3 de noviembre de 2026
 
-- Análisis de Flutter sin incidencias; 38 pruebas de Flutter aprobadas.
+- Análisis de Flutter sin incidencias; 39 pruebas de Flutter aprobadas, incluidos el reintento tras rechazar un cierre vacío y el bloqueo de ediciones mientras el cierre de sesión está pendiente.
 - Suite completa del backend: 36 pruebas aprobadas.
 - HTTP real con SQLite y MongoDB local: seis reenvíos concurrentes guardaron una sola copia; otro usuario no pudo leer la sesión, y un contenido diferente con el mismo ID obtuvo 409.
 - App Windows abierta contra localhost con cuentas ficticias `LOCAL_B3` y `LOCAL_B3_2`.

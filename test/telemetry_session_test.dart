@@ -63,6 +63,34 @@ void main() {
   });
 
   test(
+    'a rejected empty finish does not reuse its clock for the completed trial',
+    () async {
+      final session = make();
+      await session.start(participantId: 7);
+      await session.configureStudy(
+        participantNumber: 1,
+        phase: StudyPhase.practice,
+      );
+      await session.startTrial();
+      expect(await session.finishTrial(), isFalse);
+      await session.type('A');
+      expect(await session.finishTrial(), isTrue);
+      final selection = api.accepted.values.firstWhere(
+        (e) => e['event_type'] == 'selection',
+      );
+      final end = api.accepted.values.singleWhere(
+        (e) => e['event_type'] == 'trial_end',
+      );
+      expect(
+        DateTime.parse(
+          end['timestamp'] as String,
+        ).isBefore(DateTime.parse(selection['timestamp'] as String)),
+        isFalse,
+      );
+    },
+  );
+
+  test(
     'edits, corrections, rendered suggestions and acceptance reconstruct the final text',
     () async {
       final session = make();
