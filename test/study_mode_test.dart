@@ -33,6 +33,10 @@ class _Store extends StudyStore {
 }
 
 class _Telemetry extends TelemetryService {
+  @override
+  Future<void> bindParticipant(int owner) async {}
+  @override
+  Future<void> flush() async {}
   _Telemetry() : super(ApiClient(TokenStore()));
   final events =
       <({String type, String sessionId, Map<String, dynamic> data})>[];
@@ -47,6 +51,8 @@ class _Telemetry extends TelemetryService {
     Map<String, dynamic>? data,
     DateTime? timestamp,
     bool requireDelivery = false,
+    String? eventId,
+    bool retainUntilCommitted = false,
   }) async {
     if (eventType == reject) throw StateError('offline');
     if (data != null) expect(jsonEncode(data).length, lessThanOrEqualTo(4096));
@@ -387,6 +393,7 @@ void main() {
       await session.startTrial();
       predictions.pending = Completer<Prediction>();
       final typing = session.type('HOLA');
+      await Future<void>.delayed(Duration.zero);
       final finishing = session.finishTrial();
       await Future<void>.delayed(Duration.zero);
       expect(session.studyBusy, isTrue);

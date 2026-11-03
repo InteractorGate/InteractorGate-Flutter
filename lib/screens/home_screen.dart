@@ -64,6 +64,27 @@ class HomeScreen extends StatelessWidget {
               session: session,
               participantCode: auth.user?.username ?? '',
             ),
+            if (session.pendingEvents > 0 || session.telemetryError != null)
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      session.telemetryError ??
+                          'Eventos pendientes de confirmar: ${session.pendingEvents}',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      try {
+                        await session.retryTelemetry();
+                      } catch (_) {
+                        /* Estado visible. */
+                      }
+                    },
+                    child: const Text('Reintentar envío'),
+                  ),
+                ],
+              ),
             ComposedTextBar(text: session.text),
             const SizedBox(height: 12),
             SuggestionBar(
@@ -73,6 +94,8 @@ class HomeScreen extends StatelessWidget {
               dwellSeconds: session.dwellSeconds,
               dwellEnabled: session.dwellEnabled,
               onPick: session.applySuggestion,
+              presentationId: session.suggestionPresentationId,
+              onPresented: session.suggestionsPresented,
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -89,10 +112,7 @@ class HomeScreen extends StatelessWidget {
                     : DwellKeyboard(
                         dwellSeconds: session.dwellSeconds,
                         dwellEnabled: session.dwellEnabled,
-                        onKey: (ch) {
-                          session.type(ch);
-                          session.logKeySelection(ch);
-                        },
+                        onKey: session.type,
                         onSpace: session.space,
                         onBackspace: session.backspace,
                         onClear: session.clear,

@@ -80,6 +80,7 @@ class AuthController extends ChangeNotifier {
     } finally {
       try {
         if (status != AuthStatus.authenticated) {
+          _session.pauseTelemetry();
           await _auth.clearLocalSession();
         }
       } catch (_) {
