@@ -67,7 +67,7 @@ class AuthController extends ChangeNotifier {
     try {
       await authenticate();
       final participant = await _auth.me();
-      await _session.start();
+      await _session.start(participantId: participant.id);
       user = participant;
       status = AuthStatus.authenticated;
       return true;

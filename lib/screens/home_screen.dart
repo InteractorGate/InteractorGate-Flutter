@@ -8,6 +8,7 @@ import '../widgets/big_cell_board.dart';
 import '../widgets/composed_text_bar.dart';
 import '../widgets/dwell_keyboard.dart';
 import '../widgets/suggestion_bar.dart';
+import '../widgets/study_panel.dart';
 
 /// Tablero de comunicación: texto compuesto, sugerencias de la RNN y teclado
 /// dwell. Es la pantalla principal tras iniciar sesión.
@@ -32,7 +33,9 @@ class HomeScreen extends StatelessWidget {
                 const Text('Dwell'),
                 Switch(
                   value: session.dwellEnabled,
-                  onChanged: session.setDwellEnabled,
+                  onChanged: auth.busy || session.studyPlan != null
+                      ? null
+                      : session.setDwellEnabled,
                 ),
               ],
             ),
@@ -57,9 +60,14 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             if (auth.busy) const LinearProgressIndicator(),
+            StudyPanel(
+              session: session,
+              participantCode: auth.user?.username ?? '',
+            ),
             ComposedTextBar(text: session.text),
             const SizedBox(height: 12),
             SuggestionBar(
+              enabled: session.predictionEnabled,
               suggestions: session.suggestions,
               loading: session.loadingSuggestions,
               dwellSeconds: session.dwellSeconds,
@@ -69,7 +77,7 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Expanded(
               child: IgnorePointer(
-                ignoring: auth.busy || !session.active,
+                ignoring: auth.busy || !session.canCompose,
                 child: session.boardMode == BoardMode.words
                     ? BigCellBoard(
                         dwellSeconds: session.dwellSeconds,

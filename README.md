@@ -16,7 +16,7 @@ lib/
     api_client.dart         # HTTP + Bearer JWT + refresh automático (401→refresh→retry)
     auth_service.dart       # register / login / me / logout
     prediction_service.dart # POST /api/predictions/ (RNN de texto)
-    telemetry_service.dart  # POST /api/logs/ (best-effort)
+    telemetry_service.dart  # POST /api/logs/ (acciones best-effort; límites confirmados)
     token_store.dart        # tokens en almacenamiento seguro (Windows Credential Manager)
     gaze_bridge.dart        # cliente TCP del sidecar de rastreo ocular (opcional)
   state/                    # AuthController, SessionController (ChangeNotifier)
@@ -105,3 +105,15 @@ El tablero debe estar vacío y los registros deben tener UUID distintos y el
 la app debe conservar la sesión y permitir reintentar, sin cambiar de participante.
 
 Contrato completo: `docs/API.md` del repo `ig-django-backend`.
+
+## Modo de estudio E2
+
+Tras iniciar sesión, usa **Preparar estudio E2**. Confirma el orden de inclusión
+del participante y selecciona práctica S1, S2 o S3. El programa conserva en este
+equipo la asignación de listas y el avance de cada cuenta. Hay diez mensajes de
+práctica antes de S2, y veinte ensayos en cada sesión de medición, en bloques
+alternados de cinco con y sin predicción.
+
+El banco actual es **provisional de piloto**. No usar sus listas como instrumento
+validado sin revisar su equivalencia. Las instrucciones, el banco de frases y
+las pruebas manuales están en [ESTUDIO_E2.md](docs/ESTUDIO_E2.md).
