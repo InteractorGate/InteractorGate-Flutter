@@ -42,7 +42,12 @@ class DeliveryApi extends ApiClient {
   final accepted = <String, Map<String, dynamic>>{};
 
   @override
-  Future<Json> postJson(String path, Object body, {bool auth = true}) async {
+  Future<Json> postJson(
+    String path,
+    Object body, {
+    bool auth = true,
+    Duration? timeout,
+  }) async {
     final payload = Map<String, dynamic>.from(body as Map);
     requests.add(payload);
     if (rejectStatus != null) throw ApiException(rejectStatus!, 'retry later');

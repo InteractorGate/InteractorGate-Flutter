@@ -9,7 +9,9 @@ Uso:
     .venv/Scripts/python.exe calibration.py            # calibra + verifica + guarda
 """
 import json
+import shutil
 import time
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -67,10 +69,15 @@ class GazeMapper:
         return self
 
     def transform(self, feature_vec):
+        x, y = self.transform_unclipped(feature_vec)
+        return float(np.clip(x, 0, 1)), float(np.clip(y, 0, 1))
+
+    def transform_unclipped(self, feature_vec):
+        """Prediction before screen clipping, exposed for visual diagnostics."""
         z = (np.asarray(feature_vec, dtype=np.float64) - self.mean) / self.std
         x = np.append(z[X_IDX], 1.0) @ self.coef_x
         y = np.append(z[Y_IDX], 1.0) @ self.coef_y
-        return float(np.clip(x, 0, 1)), float(np.clip(y, 0, 1))
+        return float(x), float(y)
 
     def to_dict(self):
         return {"mean": self.mean.tolist(), "std": self.std.tolist(),
@@ -78,13 +85,26 @@ class GazeMapper:
 
     @classmethod
     def from_dict(cls, d):
-        return cls(mean=d["mean"], std=d["std"],
-                   coef_x=d["coef_x"], coef_y=d["coef_y"])
+        mapper = cls(mean=d["mean"], std=d["std"],
+                     coef_x=d["coef_x"], coef_y=d["coef_y"])
+        for name, shape in (("mean", (12,)), ("std", (12,)),
+                            ("coef_x", (6,)), ("coef_y", (8,))):
+            array = getattr(mapper, name)
+            if array.shape != shape or not np.isfinite(array).all():
+                raise ValueError(f"Perfil incompatible: {name}; recalibrar")
+        if np.any(mapper.std <= 0):
+            raise ValueError("Perfil incompatible: desviacion no positiva")
+        return mapper
 
 
 def _fullscreen_window():
     cv2.namedWindow(WINDOW, cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty(WINDOW, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+
+def _check_cancel():
+    if cv2.waitKey(1) & 0xff == 27 or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
+        raise InterruptedError("Calibracion cancelada")
 
 
 def _draw_target(nx, ny, label=""):
@@ -97,7 +117,7 @@ def _draw_target(nx, ny, label=""):
         cv2.putText(canvas, label, (40, 60), cv2.FONT_HERSHEY_SIMPLEX,
                     1.0, (200, 200, 200), 2)
     cv2.imshow(WINDOW, canvas)
-    cv2.waitKey(1)
+    _check_cancel()
 
 
 def _collect(cap, tracker, points, ts0):
@@ -109,9 +129,10 @@ def _collect(cap, tracker, points, ts0):
         t_fix = time.time() + FIXATE_S            # descartar mientras el ojo llega
         while time.time() < t_fix:
             cap.read()
-            cv2.waitKey(1)
+            _check_cancel()
         t_end = time.time() + CAPTURE_S
         while time.time() < t_end:
+            _check_cancel()
             ok, frame = cap.read()
             if not ok:
                 continue
@@ -127,23 +148,29 @@ def run_calibration():
     cap = config.open_camera()
     if not cap.isOpened():
         print("ERROR: webcam no disponible")
+        cap.release()
         return None
-    for _ in range(15):
-        cap.read()
-    tracker = EyeTracker()
-    _fullscreen_window()
-
-    print("Calibracion: mira cada punto rojo hasta que cambie.")
-    feats, targets, ts = _collect(cap, tracker, CALIB_POINTS, 0)
-    if len(feats) < 40:
-        print(f"ERROR: muy pocas muestras ({len(feats)}). Rostro no detectado?")
-        cap.release(); cv2.destroyAllWindows(); tracker.close()
+    tracker = None
+    try:
+        for _ in range(15):
+            cap.read()
+        tracker = EyeTracker()
+        _fullscreen_window()
+        print("Calibracion: mira cada punto rojo hasta que cambie.")
+        feats, targets, ts = _collect(cap, tracker, CALIB_POINTS, 0)
+        if len(feats) < 40:
+            print(f"ERROR: muy pocas muestras ({len(feats)}). Rostro no detectado?")
+            return None
+        mapper = GazeMapper().fit(feats, targets)
+        vfeats, vtargets, _ = _collect(cap, tracker, VERIFY_POINTS, ts)
+    except InterruptedError:
+        print("Calibracion cancelada; no se inicia el seguimiento.")
         return None
-
-    mapper = GazeMapper().fit(feats, targets)
-
-    vfeats, vtargets, _ = _collect(cap, tracker, VERIFY_POINTS, ts)
-    cap.release(); cv2.destroyAllWindows(); tracker.close()
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+        if tracker is not None:
+            tracker.close()
 
     # El ajuste ya es valido: guardarlo antes de verificar, para no perderlo
     # si la verificacion no reune muestras suficientes.
@@ -176,15 +203,29 @@ def save_calibration(mapper):
     data = {"gaze": mapper.to_dict(),
             "blink_threshold": config.BLINK_THRESHOLD,
             "screen": [config.SCREEN_WIDTH, config.SCREEN_HEIGHT]}
-    with open(config.CALIB_FILE, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=2)
+    target = Path(config.CALIB_FILE)
+    temporary = target.with_name(f".{target.name}.{time.time_ns()}.tmp")
+    try:
+        temporary.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        if target.exists():
+            shutil.copy2(target, target.with_name(
+                f"{target.stem}.backup-{time.time_ns()}.json"))
+        temporary.replace(target)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def load_calibration():
     try:
         with open(config.CALIB_FILE, encoding="utf-8") as fh:
-            return json.load(fh)
+            saved = json.load(fh)
+        GazeMapper.from_dict(saved["gaze"])
+        return saved
     except FileNotFoundError:
+        return None
+    except (ValueError, KeyError, TypeError):
+        print("Perfil guardado incompatible. Se requiere recalibrar; "
+              "el perfil anterior se conserva hasta guardar el nuevo con copia.")
         return None
 
 

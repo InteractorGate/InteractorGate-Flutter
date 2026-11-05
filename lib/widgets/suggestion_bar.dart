@@ -40,7 +40,7 @@ class SuggestionBar extends StatelessWidget {
         child: Center(
           child: Text(
             'Termina una palabra y pulsa ESPACIO para ver continuaciones',
-            style: TextStyle(color: Colors.white38, fontSize: 16),
+            style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
         ),
       );

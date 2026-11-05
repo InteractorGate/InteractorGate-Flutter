@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'config/app_theme.dart';
-import 'screens/home_screen.dart';
+import 'screens/gaze_setup_screen.dart';
 import 'screens/login_screen.dart';
 import 'state/auth_controller.dart';
 
@@ -47,7 +47,7 @@ class _AuthGate extends StatelessWidget {
         }
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       case AuthStatus.authenticated:
-        return const HomeScreen();
+        return const GazeSetupScreen();
       case AuthStatus.unauthenticated:
         return const LoginScreen();
     }

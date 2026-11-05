@@ -11,6 +11,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final _form = GlobalKey<FormState>();
   final _user = TextEditingController();
   final _email = TextEditingController();
   final _pass = TextEditingController();
@@ -28,11 +29,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit() async {
     if (_busy) return;
-    if (_user.text.trim().isEmpty ||
-        _email.text.trim().isEmpty ||
-        _pass.text.isEmpty) {
-      return;
-    }
+    if (!_form.currentState!.validate()) return;
     setState(() => _busy = true);
     final ok = await context.read<AuthController>().register(
       username: _user.text.trim(),
@@ -60,55 +57,72 @@ class _RegisterScreenState extends State<RegisterScreen> {
           constraints: const BoxConstraints(maxWidth: 420),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: _user,
-                  decoration: const InputDecoration(
-                    labelText: 'Código de participante',
-                    hintText: 'P01',
+            child: Form(
+              key: _form,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
+                    controller: _user,
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Ingresa el código de participante.'
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Código de participante',
+                      hintText: 'P01',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _email,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo de estudio',
-                    hintText: 'p01@example.com',
-                    helperText:
-                        'Usa un correo de estudio, sin datos personales.',
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _email,
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Ingresa el correo de estudio.'
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Correo de estudio',
+                      hintText: 'p01@example.com',
+                      helperText:
+                          'Usa un correo de estudio, sin datos personales.',
+                    ),
+                    keyboardType: TextInputType.emailAddress,
                   ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _pass,
-                  decoration: const InputDecoration(labelText: 'Contraseña'),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _pass2,
-                  decoration: const InputDecoration(
-                    labelText: 'Repetir contraseña',
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _pass,
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Ingresa la contraseña.'
+                        : null,
+                    decoration: const InputDecoration(labelText: 'Contraseña'),
+                    obscureText: true,
                   ),
-                  obscureText: true,
-                  onSubmitted: (_) => _submit(),
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: _busy ? null : _submit,
-                  child: _busy
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Registrarme'),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _pass2,
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Repite la contraseña.'
+                        : value != _pass.text
+                        ? 'Las contraseñas no coinciden.'
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Repetir contraseña',
+                    ),
+                    obscureText: true,
+                    onFieldSubmitted: (_) => _submit(),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: _busy ? null : _submit,
+                    child: _busy
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Registrarme'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

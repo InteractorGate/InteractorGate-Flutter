@@ -47,6 +47,12 @@ flutter run -d windows
 
 ## Rastreo ocular — dos modos
 
+El login y el registro no abren la cámara ni mueven el cursor. Después de iniciar
+sesión, pulsa **Calibrar y abrir tablero** y sigue los puntos. El control por
+mirada y parpadeo empieza cuando el tablero ya está visible. **ESC** cancela la
+calibración sin activar el seguimiento. También puedes elegir **Usar solo mouse**.
+Al cerrar sesión o la aplicación se detiene el servicio de cámara.
+
 La app funciona **con o sin** el sidecar de mirada:
 
 1. **Modo Mouse (funciona ya):** ejecuta el tracker Python existente
@@ -108,6 +114,11 @@ la app debe conservar la sesión y permitir reintentar, sin cambiar de participa
 
 Contrato completo: `docs/API.md` del repo `ig-django-backend`.
 
+Las peticiones de login, registro y perfil esperan hasta 75 segundos para permitir
+la conexión inicial con Azure SQL, cuyo backend tiene un límite de conexión de
+60 segundos. El login muestra un mensaje durante la espera. No se reenvían
+credenciales automáticamente; la telemetría conserva su límite de 15 segundos.
+
 ## Modo de estudio E2
 
 Tras iniciar sesión, usa **Preparar estudio E2**. Confirma el orden de inclusión
@@ -129,6 +140,10 @@ textual offline compara una RNN experimental y un bigrama sin cambiar el predict
 desplegado. Métodos, comandos y límites en [ANALISIS_E1_E2.md](docs/ANALISIS_E1_E2.md).
 
 ## Instrumento técnico E1
+
+Para investigar los fallos del seguimiento está disponible el
+[diagnóstico visual](docs/DIAGNOSTICO_VISUAL.md), con apertura ocular, postura,
+estimaciones antes/después del recorte y suavizado y registros numéricos locales.
 
 El sidecar incluye un modo de investigación para comparar la CNN genérica y el
 motor calibrado: fijación de puntos, celdas sin cursor, selección con cursor y

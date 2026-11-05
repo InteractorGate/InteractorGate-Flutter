@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import '../models/user.dart';
 import '../services/api_client.dart';
@@ -47,36 +50,61 @@ class AuthController extends ChangeNotifier {
     required String password2,
     String firstName = '',
     String lastName = '',
-  }) => _signIn(() async {
-    await _auth.register(
-      username: username,
-      email: email,
-      password: password,
-      password2: password2,
-      firstName: firstName,
-      lastName: lastName,
-    );
-    await _auth.login(username, password);
-  });
+  }) async {
+    var created = false;
+    final ok = await _signIn(() async {
+      await _auth.register(
+        username: username,
+        email: email,
+        password: password,
+        password2: password2,
+        firstName: firstName,
+        lastName: lastName,
+      );
+      created = true;
+      await _auth.login(username, password);
+    });
+    if (!ok && created) {
+      error =
+          'La cuenta se creó, pero no se pudo abrir la sesión. '
+          'Vuelve a Iniciar sesión con el mismo código; no la registres otra vez. '
+          '${error ?? ''}';
+      notifyListeners();
+    }
+    return ok;
+  }
 
   Future<bool> _signIn(Future<void> Function() authenticate) async {
     if (busy || status != AuthStatus.unauthenticated) return false;
     busy = true;
     error = null;
     notifyListeners();
+    var step = 'autenticación';
     try {
       await authenticate();
+      step = 'consulta del perfil';
       final participant = await _auth.me();
+      step = 'confirmación de la sesión';
       await _session.start(participantId: participant.id);
       user = participant;
       status = AuthStatus.authenticated;
       return true;
     } on ApiException catch (e) {
-      error = e.statusCode == 401
+      error = e.statusCode == 401 && step == 'autenticación'
           ? 'Usuario o contraseña incorrectos.'
-          : e.message;
-    } catch (_) {
-      error = 'No se pudo iniciar la sesión. Revisa la conexión y reintenta.';
+          : 'Error en $step: ${e.message}';
+    } on TimeoutException {
+      error =
+          'El servidor no respondió a tiempo durante $step. '
+          'Espera unos segundos e intenta iniciar sesión de nuevo.';
+    } on PlatformException {
+      error =
+          'No se pudo acceder al almacenamiento seguro de Windows durante '
+          '$step. Cierra otras ventanas de InteractorGate y reintenta.';
+    } catch (e) {
+      error =
+          'No se pudo completar $step (${e.runtimeType}). '
+          'Comunica este mensaje al equipo para revisar el fallo.';
     } finally {
       try {
         if (status != AuthStatus.authenticated) {

@@ -104,25 +104,28 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: IgnorePointer(
-                ignoring: auth.busy || !session.canCompose,
-                child: session.boardMode == BoardMode.words
-                    ? BigCellBoard(
-                        dwellSeconds: session.dwellSeconds,
-                        dwellEnabled: session.dwellEnabled,
-                        onWord: session.insertWord,
-                        onKeyboard: session.toggleBoardMode,
-                        onBackspace: session.backspace,
-                      )
-                    : DwellKeyboard(
-                        dwellSeconds: session.dwellSeconds,
-                        dwellEnabled: session.dwellEnabled,
-                        onKey: session.type,
-                        onSpace: session.space,
-                        onBackspace: session.backspace,
-                        onClear: session.clear,
-                        onWords: session.toggleBoardMode,
-                      ),
+              child: ExcludeFocus(
+                excluding: auth.busy || !session.canCompose,
+                child: IgnorePointer(
+                  ignoring: auth.busy || !session.canCompose,
+                  child: session.boardMode == BoardMode.words
+                      ? BigCellBoard(
+                          dwellSeconds: session.dwellSeconds,
+                          dwellEnabled: session.dwellEnabled,
+                          onWord: session.insertWord,
+                          onKeyboard: session.toggleBoardMode,
+                          onBackspace: session.backspace,
+                        )
+                      : DwellKeyboard(
+                          dwellSeconds: session.dwellSeconds,
+                          dwellEnabled: session.dwellEnabled,
+                          onKey: session.type,
+                          onSpace: session.space,
+                          onBackspace: session.backspace,
+                          onClear: session.clear,
+                          onWords: session.toggleBoardMode,
+                        ),
+                ),
               ),
             ),
           ],

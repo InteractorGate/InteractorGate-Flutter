@@ -24,8 +24,8 @@ void main() {
   final predictionService = PredictionService(api);
   final telemetryService = TelemetryService(api);
 
-  // --- Sidecar de rastreo ocular (proceso Python): arranca con la app ---
-  final sidecar = SidecarLauncher()..start();
+  // La cámara se solicita después del login, desde la preparación del tablero.
+  final sidecar = SidecarLauncher();
 
   // --- Controladores de estado ---
   final sessionController = SessionController(
@@ -39,6 +39,7 @@ void main() {
   runApp(
     MultiProvider(
       providers: [
+        Provider<SidecarLauncher>.value(value: sidecar),
         ChangeNotifierProvider.value(value: authController),
         ChangeNotifierProvider.value(value: sessionController),
         ChangeNotifierProvider.value(value: gazeBridge),
@@ -75,6 +76,11 @@ class _SidecarLifecycleState extends State<_SidecarLifecycle>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.auth.addListener(_onAuthChanged);
+  }
+
+  void _onAuthChanged() {
+    if (widget.auth.status != AuthStatus.authenticated) widget.sidecar.stop();
   }
 
   @override
@@ -92,6 +98,7 @@ class _SidecarLifecycleState extends State<_SidecarLifecycle>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.auth.removeListener(_onAuthChanged);
     widget.sidecar.stop();
     super.dispose();
   }

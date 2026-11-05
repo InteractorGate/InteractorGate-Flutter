@@ -48,6 +48,12 @@ Modelos en `models/`: `face_landmarker.task` (MediaPipe) y `gaze_cnn.onnx`
 
 ## Uso
 
+La app solicita `--calibrate` después del login y espera su resultado. Al mostrar
+el tablero solicita `--track`, que requiere un perfil válido y nunca recalibra
+automáticamente. El login y el modo solo mouse mantienen la cámara apagada.
+`--calibrate` devuelve código 1 al cancelar con ESC o si no logra calibrar.
+El comando manual `--service` conserva su comportamiento de calibración automática.
+
 ```powershell
 cd sidecar
 # 1) Calibrar (mira los puntos rojos a pantalla completa). Guarda calibration.json
@@ -91,6 +97,13 @@ se guardan en Documentos/InteractorGate/E1; no se sobrescribe la calibración de
 tablero. La medida angular es operacional en pantalla y no acredita el error
 nativo de MPIIGaze ni permite atribuir las diferencias solo a calibración.
 
+## Diagnóstico visual
+
+El modo `main.py --diagnose-calibration <perfil.json>` permite inspeccionar la
+apertura, el mapeo y el suavizado sin mover el cursor ni cambiar el perfil.
+Instrucciones y límites en [DIAGNOSTICO_VISUAL.md](../docs/DIAGNOSTICO_VISUAL.md).
+
 ## Pendiente
+
 - `gaze_server.py` (modo Mirada / TCP → chip "Mirada" en Flutter) aún usa la API
   antigua imaginada; falta reescribirlo sobre estos módulos.

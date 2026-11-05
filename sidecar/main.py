@@ -95,6 +95,7 @@ def run_service(click_on_blink=True):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Tracker de mirada InteractorGate")
     ap.add_argument("--calibrate", action="store_true", help="recalibrar y salir")
+    ap.add_argument("--track", action="store_true", help="seguir sin calibrar; requiere perfil valido")
     ap.add_argument("--service", action="store_true",
                     help="modo servicio: calibra si hace falta y corre modo Mouse indefinido")
     ap.add_argument("--duration", type=int, default=45, help="segundos de modo Mouse")
@@ -106,8 +107,13 @@ if __name__ == "__main__":
     ap.add_argument("--analysis-init-config", help="crear plantilla de manifiesto de analisis")
     ap.add_argument("--analysis-output", help="carpeta opcional de resultados de analisis")
     ap.add_argument("--questionnaires-template", help="crear CSV vacio para respuestas SUS/QUEST")
+    ap.add_argument("--diagnose-calibration", help="diagnostico visual con este perfil JSON; sin clics")
+    ap.add_argument("--diagnose-output", help="carpeta opcional de registros del diagnostico")
     args = ap.parse_args()
-    if args.analysis_config or args.analysis_init_config or args.questionnaires_template:
+    if args.diagnose_calibration:
+        from gaze_diagnostics import run
+        run(args.diagnose_calibration, args.diagnose_output)
+    elif args.analysis_config or args.analysis_init_config or args.questionnaires_template:
         from analyze_study import main as analysis_main
         argv = []
         if args.analysis_init_config:
@@ -131,7 +137,9 @@ if __name__ == "__main__":
         from bench_precision import run
         run(json.loads(Path(args.e1_config).read_text(encoding="utf-8")), args.e1_output)
     elif args.calibrate:
-        run_calibration()
+        raise SystemExit(0 if run_calibration() is not None else 1)
+    elif args.track:
+        raise SystemExit(run_mouse(duration=0, click_on_blink=not args.no_click))
     elif args.service:
         run_service(click_on_blink=not args.no_click)
     else:

@@ -30,8 +30,14 @@ class DwellButton extends StatefulWidget {
 class _DwellButtonState extends State<DwellButton>
     with SingleTickerProviderStateMixin {
   Timer? _timer;
-  late final AnimationController _progress = AnimationController(vsync: this);
+  late final AnimationController _progress;
   bool _hovering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _progress = AnimationController(vsync: this);
+  }
 
   Duration get _dwell =>
       Duration(milliseconds: (widget.dwellSeconds * 1000).round());
@@ -75,19 +81,31 @@ class _DwellButtonState extends State<DwellButton>
     return MouseRegion(
       onEnter: (_) => _startDwell(),
       onExit: (_) => _cancelDwell(),
-      child: GestureDetector(
-        onTap: _fire,
+      child: TextButton(
+        onPressed: _fire,
+        style: ButtonStyle(
+          padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+          backgroundColor: WidgetStatePropertyAll(baseColor),
+          foregroundColor: WidgetStatePropertyAll(
+            Theme.of(context).colorScheme.onSurface,
+          ),
+          textStyle: WidgetStatePropertyAll(DefaultTextStyle.of(context).style),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          side: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.focused)
+                ? BorderSide(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    width: 3,
+                  )
+                : const BorderSide(color: Colors.white24),
+          ),
+        ),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: baseColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white24),
-              ),
-              child: Center(child: widget.child),
-            ),
+            Center(child: widget.child),
             if (widget.dwellEnabled)
               Positioned(
                 left: 0,
@@ -98,12 +116,14 @@ class _DwellButtonState extends State<DwellButton>
                     bottomLeft: Radius.circular(12),
                     bottomRight: Radius.circular(12),
                   ),
-                  child: AnimatedBuilder(
-                    animation: _progress,
-                    builder: (context, _) => LinearProgressIndicator(
-                      value: _progress.value,
-                      minHeight: 6,
-                      backgroundColor: Colors.transparent,
+                  child: ExcludeSemantics(
+                    child: AnimatedBuilder(
+                      animation: _progress,
+                      builder: (context, _) => LinearProgressIndicator(
+                        value: _progress.value,
+                        minHeight: 6,
+                        backgroundColor: Colors.transparent,
+                      ),
                     ),
                   ),
                 ),
