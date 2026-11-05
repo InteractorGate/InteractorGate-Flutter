@@ -232,6 +232,64 @@ También debe acordarse el lugar de las sesiones: la tesis declara domicilios y 
 
 ## Mantenimiento del plan
 
+### Espera de autenticación en Azure - 4 de noviembre de 2026
+
+Ante un timeout de login, se comprobó que salud HTTP y validación de una petición
+vacía respondían desde Python y Dart. Una única consulta con usuario aleatorio
+inexistente tardó 8,8 s en devolver 401; no se utilizaron credenciales de P01.
+El cliente tenía un límite de 15 s frente a los 60 s de conexión SQL del backend.
+Login, registro y perfil pasan a esperar hasta 75 s, sin reintentos automáticos;
+telemetría mantiene 15 s. El login informa que el acceso se está validando.
+
+63 pruebas Flutter y análisis de `lib`/`test` satisfactorios; las regresiones
+simulan respuestas de identidad de 20 s y verifican ambos límites y su expiración.
+Windows debug compilado para Azure. El usuario confirmó el acceso real con P01
+tras ejecutar la corrección. No se cambiaron Azure ni las credenciales. El usuario
+también confirmó cancelación con ESC, calibración completa, seguimiento al aparecer
+el tablero y detención de la cámara al cerrar sesión.
+
+### Corrección del arranque ocular - 4 de noviembre de 2026
+
+El servicio ya no arranca en el login. Tras autenticar se ofrece «Calibrar y abrir
+tablero» o «Usar solo mouse». La calibración corre sin mover el cursor; solo tras
+su salida satisfactoria y el primer frame del tablero se solicita el seguimiento.
+ESC cancela sin sustituir el perfil anterior. Al cerrar sesión o la app se
+detiene el proceso, incluso si su creación todavía estaba pendiente.
+
+Regresiones añadidas: login sin cámara, orden calibración/tablero/seguimiento,
+cancelación, alternativa con mouse, cierre de sesión y salida tardía de procesos.
+La comprobación interactiva con P01 en Azure fue confirmada por el usuario:
+login y preparación sin cámara, cancelación con ESC, calibración completa,
+inicio del seguimiento con el tablero visible y cámara apagada al cerrar sesión.
+
+Verificación automática: 60 pruebas Flutter y 48 Python satisfactorias; análisis
+de `lib` y `test` sin incidencias. Compilaciones Windows debug y PyInstaller
+terminadas. La app se abrió contra Azure y se comprobó que el login no lanzó
+ningún proceso `gaze_service`. El recorrido posterior con P01 también fue confirmado.
+Tras cerrar sesión no quedó ningún proceso de seguimiento y el perfil guardado
+corresponde al formato actual de 12 rasgos.
+
+### Mejora posterior a los seis bloques: diagnóstico visual
+
+Modo local `--diagnose-calibration` para investigar los bloqueos
+por apertura en objetivos inferiores y distinguir extrapolación, recorte y
+suavizado. Conserva el perfil y los umbrales del piloto. Guarda señales numéricas
+por ejecución, sin imágenes ni control del ratón. Procedimiento en
+[DIAGNOSTICO_VISUAL.md](DIAGNOSTICO_VISUAL.md).
+
+Pruebas automáticas cubren compatibilidad del mapeo previo, bloqueo sin perder
+rasgos/candidato, rechazo de perfiles incompatibles, separación de denominadores,
+pausa, salida y conservación de registros ante fallo de cámara. La inspección
+manual con webcam se realizó; la publicación se comprueba mediante el release.
+
+**Verificación local 2026-11-03:** 41 pruebas Python satisfactorias, ayuda CLI
+comprobada y vista sintética revisada. El ejecutable PyInstaller abrió la ventana
+del diagnóstico con el perfil E1 previo y registró rasgos, baja apertura y
+coordenadas antes/después del recorte. La sesión posterior registró 12 519 muestras,
+los nueve objetivos y cierre normal (`stopped`). La pausa no fue ejercitada en
+esa sesión. Se observaron desvíos horizontales y mayor bloqueo en los objetivos
+inferiores; estos datos exploratorios no acreditan precisión ni eficacia clínica.
+
 Al trabajar en cada bloque, registrar aquí los cambios, las pruebas realizadas, sus resultados y las verificaciones pendientes. No marcar una verificación manual o de infraestructura como aprobada a partir de una prueba simulada.
 
 ## Flujo de cierre acordado para cada bloque

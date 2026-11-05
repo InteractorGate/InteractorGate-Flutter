@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
 import 'package:interactor_gate/models/prediction.dart';
 import 'package:interactor_gate/models/user.dart';
 import 'package:interactor_gate/models/study_protocol.dart';
@@ -19,6 +20,7 @@ class _Auth extends AuthService {
   String participant = '';
   bool rejectLogin = false;
   bool rejectClear = false;
+  Object? loginError;
 
   @override
   Future<void> clearLocalSession() async {
@@ -29,6 +31,7 @@ class _Auth extends AuthService {
   @override
   Future<void> login(String username, String password) async {
     events.add('login:$username');
+    if (loginError != null) throw loginError!;
     if (rejectLogin) throw ApiException(401, 'Invalid login');
     participant = username;
   }
@@ -182,6 +185,46 @@ void main() {
     expect(auth.busy, isFalse);
   });
 
+  test(
+    'login timeout identifies the stage without reporting bad credentials',
+    () async {
+      await auth.bootstrap();
+      service.loginError = TimeoutException('slow');
+      expect(await auth.login('P01', 'password'), isFalse);
+      expect(auth.error, contains('no respondió a tiempo'));
+      expect(auth.error, contains('autenticación'));
+      expect(session.active, isFalse);
+    },
+  );
+
+  test(
+    'secure storage failure is distinguished from a network failure',
+    () async {
+      await auth.bootstrap();
+      service.loginError = PlatformException(code: 'storage');
+      expect(await auth.login('P01', 'password'), isFalse);
+      expect(auth.error, contains('almacenamiento seguro de Windows'));
+      expect(session.active, isFalse);
+    },
+  );
+
+  test('created account survives a failed automatic sign in', () async {
+    await auth.bootstrap();
+    service.loginError = TimeoutException('slow');
+    expect(
+      await auth.register(
+        username: 'P03',
+        email: 'p03@example.com',
+        password: 'password',
+        password2: 'password',
+      ),
+      isFalse,
+    );
+    expect(auth.error, contains('La cuenta se creó'));
+    expect(auth.error, contains('no la registres otra vez'));
+    expect(session.active, isFalse);
+  });
+
   test('unconfirmed start does not open the board', () async {
     await auth.bootstrap();
     telemetry.failEvent = 'session_start';
@@ -189,6 +232,7 @@ void main() {
     expect(auth.status, AuthStatus.unauthenticated);
     expect(session.sessionId, isNull);
     expect(auth.error, isNotNull);
+    expect(auth.error, contains('confirmación de la sesión'));
     telemetry.failEvent = null;
     expect(await auth.login('P01', 'password'), isTrue);
   });

@@ -8,12 +8,16 @@ class AuthService {
 
   final ApiClient _api;
   final TokenStore _tokens;
+  // Azure SQL permite hasta 60 s para abrir la conexión; dejar margen HTTP.
+  static const _authenticationTimeout = Duration(seconds: 75);
 
   Future<void> login(String username, String password) async {
-    final data = await _api.postJson('/api/users/login/', {
-      'username': username,
-      'password': password,
-    }, auth: false);
+    final data = await _api.postJson(
+      '/api/users/login/',
+      {'username': username, 'password': password},
+      auth: false,
+      timeout: _authenticationTimeout,
+    );
     await _tokens.save(
       access: data['access'] as String,
       refresh: data['refresh'] as String,
@@ -28,18 +32,26 @@ class AuthService {
     String firstName = '',
     String lastName = '',
   }) async {
-    await _api.postJson('/api/users/register/', {
-      'username': username,
-      'email': email,
-      'password': password,
-      'password2': password2,
-      if (firstName.isNotEmpty) 'first_name': firstName,
-      if (lastName.isNotEmpty) 'last_name': lastName,
-    }, auth: false);
+    await _api.postJson(
+      '/api/users/register/',
+      {
+        'username': username,
+        'email': email,
+        'password': password,
+        'password2': password2,
+        if (firstName.isNotEmpty) 'first_name': firstName,
+        if (lastName.isNotEmpty) 'last_name': lastName,
+      },
+      auth: false,
+      timeout: _authenticationTimeout,
+    );
   }
 
   Future<User> me() async {
-    final data = await _api.getJson('/api/users/me/');
+    final data = await _api.getJson(
+      '/api/users/me/',
+      timeout: _authenticationTimeout,
+    );
     return User.fromJson(data);
   }
 

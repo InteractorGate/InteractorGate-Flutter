@@ -25,7 +25,12 @@ class DwellKeyboard extends StatelessWidget {
 
   static const List<String> _rows = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 
-  DwellButton _key(String label, VoidCallback onSel, {Color? color, double fontSize = 26}) {
+  DwellButton _key(
+    String label,
+    VoidCallback onSel, {
+    Color? color,
+    double fontSize = 26,
+  }) {
     return DwellButton(
       dwellSeconds: dwellSeconds,
       dwellEnabled: dwellEnabled,
@@ -63,16 +68,24 @@ class DwellKeyboard extends StatelessWidget {
                 flex: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(4),
-                  child: _key('◀ PALABRAS', onWords,
-                      color: const Color(0xFF264D4D), fontSize: 15),
+                  child: _key(
+                    '◀ PALABRAS',
+                    onWords,
+                    color: const Color(0xFF264D4D),
+                    fontSize: 15,
+                  ),
                 ),
               ),
               Expanded(
                 flex: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(4),
-                  child: _key('LIMPIAR', onClear,
-                      color: const Color(0xFF4D2626), fontSize: 16),
+                  child: _key(
+                    'LIMPIAR',
+                    onClear,
+                    color: const Color(0xFF4D2626),
+                    fontSize: 16,
+                  ),
                 ),
               ),
               Expanded(
@@ -90,7 +103,11 @@ class DwellKeyboard extends StatelessWidget {
                     dwellSeconds: dwellSeconds,
                     dwellEnabled: dwellEnabled,
                     onSelected: onBackspace,
-                    child: const Icon(Icons.backspace_outlined, size: 26),
+                    child: const Icon(
+                      Icons.backspace_outlined,
+                      size: 26,
+                      semanticLabel: 'Borrar último carácter',
+                    ),
                   ),
                 ),
               ),

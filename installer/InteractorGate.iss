@@ -47,6 +47,10 @@ Name: "desktopicon"; Description: "Crear un icono en el escritorio"; GroupDescri
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+; Flutter necesita el runtime junto a su exe, no solo dentro del sidecar.
+Source: "{#SourceDir}\gaze\_internal\msvcp140.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\gaze\_internal\vcruntime140.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\gaze\_internal\vcruntime140_1.dll"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

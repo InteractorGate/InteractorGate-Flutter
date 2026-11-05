@@ -24,10 +24,11 @@ class SessionExpired implements Exception {}
 /// Cliente HTTP con Bearer JWT y renovación automática ante 401
 /// (rotación de refresh token incluida, según el contrato del backend).
 class ApiClient {
-  ApiClient(this._tokens);
+  ApiClient(this._tokens, {http.Client? client})
+    : _http = client ?? http.Client();
 
   final TokenStore _tokens;
-  final http.Client _http = http.Client();
+  final http.Client _http;
   static const _timeout = Duration(seconds: 15);
 
   Uri _uri(String path) => Uri.parse('${ApiConfig.baseUrl}$path');
@@ -37,6 +38,7 @@ class ApiClient {
     String path, {
     Object? body,
     bool auth = true,
+    Duration? timeout,
   }) async {
     Future<http.Response> once() async {
       final headers = <String, String>{'Content-Type': 'application/json'};
@@ -58,11 +60,12 @@ class ApiClient {
       }
     }
 
-    var res = await once().timeout(_timeout);
+    final limit = timeout ?? _timeout;
+    var res = await once().timeout(limit);
     if (res.statusCode == 401 && auth) {
       final refreshed = await _refresh();
       if (!refreshed) throw SessionExpired();
-      res = await once().timeout(_timeout);
+      res = await once().timeout(limit);
     }
     return res;
   }
@@ -112,14 +115,29 @@ class ApiClient {
     throw ApiException(res.statusCode, message, decoded);
   }
 
-  Future<Json> getJson(String path, {bool auth = true}) async {
-    final res = await _send('GET', path, auth: auth);
+  Future<Json> getJson(
+    String path, {
+    bool auth = true,
+    Duration? timeout,
+  }) async {
+    final res = await _send('GET', path, auth: auth, timeout: timeout);
     if (res.statusCode >= 200 && res.statusCode < 300) return _decode(res);
     _fail(res);
   }
 
-  Future<Json> postJson(String path, Object body, {bool auth = true}) async {
-    final res = await _send('POST', path, body: body, auth: auth);
+  Future<Json> postJson(
+    String path,
+    Object body, {
+    bool auth = true,
+    Duration? timeout,
+  }) async {
+    final res = await _send(
+      'POST',
+      path,
+      body: body,
+      auth: auth,
+      timeout: timeout,
+    );
     if (res.statusCode >= 200 && res.statusCode < 300) return _decode(res);
     _fail(res);
   }
