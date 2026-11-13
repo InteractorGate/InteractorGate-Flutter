@@ -9,10 +9,13 @@ import 'services/auth_service.dart';
 import 'services/gaze_bridge.dart';
 import 'services/prediction_service.dart';
 import 'services/sidecar_launcher.dart';
+import 'services/speech_service.dart';
 import 'services/telemetry_service.dart';
 import 'services/token_store.dart';
+import 'services/wav_player.dart';
 import 'state/auth_controller.dart';
 import 'state/session_controller.dart';
+import 'state/speech_controller.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +38,17 @@ void main() {
   final authController = AuthController(authService, sessionController)
     ..bootstrap();
   final gazeBridge = GazeBridge()..connect();
+  // Modo discurso con Azure AI Speech (token emitido por el backend).
+  final speechController = SpeechController(
+    AzureSpeechSynthesizer(api),
+    WindowsWavPlayer(),
+  );
+  // Al cerrar sesión se corta la voz y se olvida el último mensaje.
+  authController.addListener(() {
+    if (authController.status != AuthStatus.authenticated) {
+      speechController.reset();
+    }
+  });
 
   runApp(
     MultiProvider(
@@ -43,6 +57,7 @@ void main() {
         ChangeNotifierProvider.value(value: authController),
         ChangeNotifierProvider.value(value: sessionController),
         ChangeNotifierProvider.value(value: gazeBridge),
+        ChangeNotifierProvider<SpeechController?>.value(value: speechController),
       ],
       child: _SidecarLifecycle(
         sidecar: sidecar,

@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import '../services/gaze_bridge.dart';
 import '../state/auth_controller.dart';
 import '../state/session_controller.dart';
+import '../state/speech_controller.dart';
 import '../widgets/big_cell_board.dart';
 import '../widgets/composed_text_bar.dart';
 import '../widgets/dwell_keyboard.dart';
+import '../widgets/speak_button.dart';
 import '../widgets/suggestion_bar.dart';
 import '../widgets/study_panel.dart';
 
@@ -22,6 +24,10 @@ class HomeScreen extends StatelessWidget {
     final session = context.watch<SessionController>();
     final auth = context.watch<AuthController>();
     final gaze = context.watch<GazeBridge>();
+    // Modo discurso: oculto durante el estudio E2 para no alterar sus tiempos.
+    final speech = session.studyPlan == null
+        ? context.watch<SpeechController?>()
+        : null;
     final suggestionRequest = session.suggestionPresentationId;
 
     return Scaffold(
@@ -94,7 +100,34 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ],
               ),
-            ComposedTextBar(text: session.text),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: ComposedTextBar(text: session.text)),
+                if (speech != null) ...[
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 230,
+                    height: 90,
+                    child: SpeakButton(
+                      status: speech.status,
+                      enabled: session.text.trim().isNotEmpty,
+                      dwellSeconds: session.dwellSeconds,
+                      dwellEnabled: session.dwellEnabled,
+                      onPressed: () => speech.toggle(session.text),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            if (speech?.error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  speech!.error!,
+                  style: const TextStyle(color: Colors.amber, fontSize: 18),
+                ),
+              ),
             const SizedBox(height: 12),
             SuggestionBar(
               enabled: session.predictionEnabled,

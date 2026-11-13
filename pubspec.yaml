@@ -44,6 +44,10 @@ dependencies:
   flutter_secure_storage: ^9.2.0
   # Generación de session_id (UUID) para telemetría y predicciones.
   uuid: ^4.4.0
+  # Reproducción del audio de Azure AI Speech con la API nativa de Windows
+  # (PlaySound de winmm), sin plugins nativos adicionales.
+  ffi: ^2.1.0
+  win32: ^5.15.0
 
 dev_dependencies:
   flutter_test:
