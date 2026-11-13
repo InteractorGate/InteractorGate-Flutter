@@ -16,6 +16,7 @@ class _GazeSetupScreenState extends State<GazeSetupScreen> {
   late final SidecarLauncher _sidecar;
   bool _calibrating = false;
   bool _ready = false;
+  bool _cameraAllowed = false;
   String? _error;
 
   @override
@@ -25,7 +26,31 @@ class _GazeSetupScreenState extends State<GazeSetupScreen> {
   }
 
   Future<void> _calibrate() async {
+    final allowed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Permitir el uso de la cámara'),
+        content: const Text(
+          'InteractorGate necesita la cámara para calibrar y seguir tu mirada. '
+          'Las imágenes se procesan en este equipo. Puedes continuar sin cámara '
+          'con el mouse o el teclado físico, y desactivarla desde el tablero. '
+          'Esta autorización no sustituye el consentimiento informado del estudio.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Ahora no'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Permitir cámara y calibrar'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || allowed != true) return;
     setState(() {
+      _cameraAllowed = true;
       _calibrating = true;
       _error = null;
     });
@@ -62,7 +87,19 @@ class _GazeSetupScreenState extends State<GazeSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_ready) return const HomeScreen();
+    if (_ready) {
+      return HomeScreen(
+        onDisableCamera: _cameraAllowed
+            ? () {
+                _sidecar.stop();
+                setState(() {
+                  _cameraAllowed = false;
+                  _ready = false;
+                });
+              }
+            : null,
+      );
+    }
     final auth = context.watch<AuthController>();
     return Scaffold(
       appBar: AppBar(

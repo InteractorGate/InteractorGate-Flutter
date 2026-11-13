@@ -161,6 +161,33 @@ separación, sin reemplazar lo escrito, y solicita la continuación siguiente.
 Cualquier edición descarta las respuestas anteriores. Regla y prueba local en
 [SUGERENCIAS_E2.md](docs/SUGERENCIAS_E2.md).
 
+## Modo discurso (voz)
+
+Junto a la caja de texto está el botón **HABLAR**. Al terminar el mensaje, el
+usuario lo activa por permanencia o clic y la app lo pronuncia con una voz
+neural de **Azure AI Speech** (por defecto `es-PE-CamilaNeural`). Mientras
+suena, el botón cambia a **DETENER**; repetir la misma frase reutiliza el audio.
+
+- La clave de Azure vive solo en el backend; la app pide un token de 10 minutos
+  a `/api/speech/token/` y envía el texto directamente a Azure.
+- Requiere conexión a internet. Sin backend configurado se muestra
+  "La voz no está configurada en el servidor."
+- El audio se reproduce con `PlaySound` de Windows (sin plugins nativos extra).
+- Durante el estudio E2 el botón se oculta para no alterar sus tiempos, y la
+  pronunciación no se registra en la telemetría. Al cerrar sesión se olvida el
+  último audio.
+
+## Permiso de cámara
+
+La app no inicia la cámara en el acceso. Después de identificarse, al seleccionar
+**Calibrar y abrir tablero** solicita autorización explícita. **Ahora no** o cerrar
+el diálogo mantiene el servicio apagado; **Usar solo mouse** abre el tablero sin
+cámara y permite también navegar por teclado físico. Tras aceptar y calibrar,
+**Desactivar cámara** detiene el servicio y vuelve a la preparación. El permiso
+se solicita de nuevo al volver a calibrar y no se conserva entre sesiones.
+Esta autorización de la aplicación no sustituye el consentimiento informado del
+estudio ni los permisos de cámara de Windows.
+
 ## Registro y exportación de ensayos
 
 **Verificar y exportar sesión** consulta los registros mediante la API de la propia
