@@ -162,6 +162,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(commands, isEmpty);
       await tester.tap(find.text('Calibrar y abrir tablero'));
+      await tester.pumpAndSettle();
+      expect(commands, isEmpty);
+      await tester.tap(find.text('Permitir cámara y calibrar'));
       await tester.pump();
       expect(commands, [
         ['--calibrate'],
@@ -173,6 +176,10 @@ void main() {
         ['--calibrate'],
         ['--track'],
       ]);
+      await tester.tap(find.byTooltip('Desactivar cámara'));
+      await tester.pumpAndSettle();
+      expect(tracking.killed, isTrue);
+      expect(find.text('Calibrar y abrir tablero'), findsOneWidget);
       auth.change(AuthStatus.unauthenticated);
       await tester.pumpAndSettle();
       expect(tracking.killed, isTrue);
@@ -195,6 +202,9 @@ void main() {
     auth.change(AuthStatus.authenticated);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Calibrar y abrir tablero'));
+    await tester.pumpAndSettle();
+    expect(calls, 0);
+    await tester.tap(find.text('Permitir cámara y calibrar'));
     await tester.pump();
     process.done.complete(1);
     await tester.pumpAndSettle();
@@ -207,5 +217,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(HomeScreen), findsOneWidget);
     expect(calls, 1);
+  });
+
+  testWidgets('rejecting camera permission never starts the sidecar', (
+    tester,
+  ) async {
+    var calls = 0;
+    final launcher = SidecarLauncher(
+      launchProcess: (_) async {
+        calls++;
+        return _Process();
+      },
+    );
+    final auth = await _openApp(tester, launcher);
+    auth.change(AuthStatus.authenticated);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calibrar y abrir tablero'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ahora no'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Usar solo mouse'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(calls, 0);
   });
 }

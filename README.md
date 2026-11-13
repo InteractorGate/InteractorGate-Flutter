@@ -161,6 +161,17 @@ separación, sin reemplazar lo escrito, y solicita la continuación siguiente.
 Cualquier edición descarta las respuestas anteriores. Regla y prueba local en
 [SUGERENCIAS_E2.md](docs/SUGERENCIAS_E2.md).
 
+## Permiso de cámara
+
+La app no inicia la cámara en el acceso. Después de identificarse, al seleccionar
+**Calibrar y abrir tablero** solicita autorización explícita. **Ahora no** o cerrar
+el diálogo mantiene el servicio apagado; **Usar solo mouse** abre el tablero sin
+cámara y permite también navegar por teclado físico. Tras aceptar y calibrar,
+**Desactivar cámara** detiene el servicio y vuelve a la preparación. El permiso
+se solicita de nuevo al volver a calibrar y no se conserva entre sesiones.
+Esta autorización de la aplicación no sustituye el consentimiento informado del
+estudio ni los permisos de cámara de Windows.
+
 ## Registro y exportación de ensayos
 
 **Verificar y exportar sesión** consulta los registros mediante la API de la propia

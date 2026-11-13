@@ -13,7 +13,9 @@ import '../widgets/study_panel.dart';
 /// Tablero de comunicación: texto compuesto, sugerencias de la RNN y teclado
 /// dwell. Es la pantalla principal tras iniciar sesión.
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.onDisableCamera});
+
+  final VoidCallback? onDisableCamera;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +28,12 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('InteractorGate — ${auth.user?.username ?? ''}'),
         actions: [
+          if (onDisableCamera != null)
+            IconButton(
+              tooltip: 'Desactivar cámara',
+              onPressed: onDisableCamera,
+              icon: const Icon(Icons.videocam_off_outlined),
+            ),
           _GazeStatusChip(connected: gaze.connected),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
