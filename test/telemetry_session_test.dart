@@ -13,7 +13,7 @@ import 'telemetry_queue_test.dart' show MemoryOutbox, DeliveryApi;
 class _Study extends StudyStore {
   StudyProgress? progress = const StudyProgress(
     participantNumber: 1,
-    practiceCompleted: 5,
+    practiceCompleted: 3,
   );
   bool failSave = false;
   @override
@@ -134,7 +134,7 @@ void main() {
       }
       expect(reconstructed, 'AGUA por favor');
       expect((events.last['data'] as Map)['final_text'], reconstructed);
-      expect(study.progress!.practiceCompleted, 6);
+      expect(study.progress!.practiceCompleted, 4);
       expect(outbox.entries, isEmpty);
     },
   );
@@ -162,7 +162,7 @@ void main() {
       study.failSave = false;
       final resumed = make();
       await resumed.start(participantId: 7);
-      expect(study.progress!.practiceCompleted, 6);
+      expect(study.progress!.practiceCompleted, 4);
       expect(
         api.accepted.values.where((e) => e['event_type'] == 'trial_end').length,
         1,

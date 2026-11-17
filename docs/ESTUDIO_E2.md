@@ -2,6 +2,10 @@
 
 Estado: implementación, análisis y 27 pruebas automatizadas aprobados. El usuario confirmó las cuatro comprobaciones manuales con P01, incluida práctica, ambas condiciones en S2, interrupción, reintento sin conexión y recuperación del avance. La inspección directa de bases de datos está pendiente por conectividad; la publicación del piloto se consulta en [Releases](https://github.com/InteractorGate/InteractorGate-Flutter/releases/tag/v1.0.2).
 
+## Protocolo reducido (pilot-v2) — 17 de noviembre de 2026
+
+A pedido de los investigadores, desde la versión 1.2.6 cada fase tiene la mitad de mensajes: práctica 5 (3 + 2), S2 10 y S3 10, con bloques alternados 3-2-2-3 y cinco frases por condición en cada sesión. S2 y S3 usan 5 frases de cada lista por sesión (20 de las 40 del banco). El banco pasa a `pilot-v2`: el avance guardado con `pilot-v1` no se migra y el participante empieza desde la práctica. Los ensayos `pilot-v1` y `pilot-v2` se analizan por separado.
+
 ## Alcance del banco
 
 El usuario autorizó preparar frases provisionales para probar el programa. `pilot-v1` contiene 40 frases de medición y diez de práctica. Las listas no son todavía un instrumento validado: falta revisar equivalencia de frecuencia de palabras, comprensión y pertinencia con los investigadores. Ninguna frase coincide exactamente, tras normalización, con las 103 secuencias del corpus actual en `ig-django-backend/ai_modules/rnn/corpus.py`. Repetir la comprobación si cambia el entrenamiento. La ausencia de frases completas repetidas no acredita generalización del predictor.
@@ -12,9 +16,9 @@ La lista A tiene una media de 21,10 caracteres (17–27) y B de 21,85 (18–26),
 
 1. Entrar con una cuenta seudónima individual y seleccionar **Preparar estudio E2**.
 2. Confirmar el orden de inclusión según el registro del investigador. El número sugerido por el código no sustituye ese registro. Impares: A con predicción y B sin predicción; pares: asignación inversa. La elección queda fija para esa cuenta en este equipo.
-3. Seleccionar **S1 — Práctica**. Cada ensayo requiere **Iniciar ensayo**, componer un mensaje y **Terminar mensaje**. Los diez mensajes (cinco por condición) quedan marcados como práctica, fuera de la medición. El tablero no admite escritura antes de iniciar.
-4. Seleccionar **S2 — Primera mitad** después de la práctica. Hay cuatro bloques alternados de cinco frases, diez por condición. La condición inicial se aleatoriza de forma reproducible por participante y sesión.
-5. Seleccionar **S3 — Segunda mitad** después de S2. Utiliza las otras veinte frases, sin repetir objetivos de medición.
+3. Seleccionar **S1 — Práctica**. Cada ensayo requiere **Iniciar ensayo**, componer un mensaje y **Terminar mensaje**. Los cinco mensajes (bloques 3-2: tres en la primera condición y dos en la segunda) quedan marcados como práctica, fuera de la medición. El tablero no admite escritura antes de iniciar.
+4. Seleccionar **S2 — Primera mitad** después de la práctica. Hay diez frases en cuatro bloques alternados de 3-2-2-3, cinco por condición. La condición inicial se aleatoriza de forma reproducible por participante y sesión.
+5. Seleccionar **S3 — Segunda mitad** después de S2. Utiliza otras diez frases (cinco de cada lista), sin repetir objetivos de medición.
 6. **Interrumpir ensayo** registra el texto parcial y el estado `interrupted`, sin avanzar la frase. Un nuevo inicio crea otro UUID. Se puede pausar entre ensayos. Cambiar de sesión o volver al tablero libre requiere terminar o interrumpir primero el ensayo activo.
 7. Cerrar sesión o la ventana interrumpe un ensayo activo antes de registrar el cierre de la sesión. Si falla la entrega, se conserva el estado para reintentar.
 

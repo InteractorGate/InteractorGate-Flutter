@@ -484,10 +484,10 @@ class SessionController extends ChangeNotifier {
     }
     if (!plan.practice && !progress.readyToMeasure) {
       throw StateError(
-        'Completa primero los diez mensajes de práctica en ambas condiciones.',
+        'Completa primero los $studyPracticeTrials mensajes de práctica en ambas condiciones.',
       );
     }
-    if (phase == StudyPhase.s3 && progress.s2Completed < 20) {
+    if (phase == StudyPhase.s3 && progress.s2Completed < studySessionTrials) {
       throw StateError('Completa S2 antes de comenzar S3.');
     }
     await _studyStore.save(participantId, progress);

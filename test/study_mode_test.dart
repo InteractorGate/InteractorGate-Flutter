@@ -94,31 +94,34 @@ void main() {
   );
 
   test(
-    'S2/S3 use all 40 phrases once, alternating blocks and counterbalancing lists',
+    'S2/S3 use 20 distinct phrases, alternating 3-2-2-3 blocks and counterbalancing lists',
     () {
       for (var number = 1; number <= 20; number++) {
         final s2 = StudyPlan(participantNumber: number, phase: StudyPhase.s2);
         final s3 = StudyPlan(participantNumber: number, phase: StudyPhase.s3);
         final entries = [...s2.entries, ...s3.entries];
-        expect(entries.map((e) => e.phraseId).toSet().length, 40);
-        expect(
-          entries
-              .where((e) => e.condition == StudyCondition.withPrediction)
-              .length,
-          20,
-        );
+        expect(s2.entries.length, studySessionTrials);
+        expect(s3.entries.length, studySessionTrials);
+        expect(entries.map((e) => e.phraseId).toSet().length, 20);
         for (final plan in [s2, s3]) {
+          expect(
+            plan.entries
+                .where((e) => e.condition == StudyCondition.withPrediction)
+                .length,
+            5,
+          );
+          StudyCondition? previous;
           for (var block = 1; block <= 4; block++) {
             final group = plan.entries.where((e) => e.block == block);
-            expect(group.length, 5);
+            expect(group.length, studySessionBlocks[block - 1]);
             expect(group.map((e) => e.condition).toSet().length, 1);
-            if (block > 1) {
-              expect(
-                group.first.condition,
-                isNot(plan.entries[(block - 2) * 5].condition),
-              );
-            }
+            expect(group.first.condition, isNot(previous));
+            previous = group.first.condition;
           }
+          expect(
+            plan.entries.map((e) => e.order),
+            List.generate(studySessionTrials, (i) => i + 1),
+          );
         }
         expect(
           entries
@@ -140,7 +143,10 @@ void main() {
   test('corrupted or incompatible local progress is rejected', () {
     final json = const StudyProgress(participantNumber: 1).toJson();
     expect(
-      () => StudyProgress.fromJson({...json, 'practice_completed': 11}),
+      () => StudyProgress.fromJson({
+        ...json,
+        'practice_completed': studyPracticeTrials + 1,
+      }),
       throwsFormatException,
     );
     expect(
@@ -183,13 +189,27 @@ void main() {
       ),
       isTrue,
     );
-    for (var i = 0; i < 10; i++) {
+    for (var i = 0; i < studyPracticeTrials; i++) {
       await completeMessage();
     }
   }
 
+  test('practice has five messages in 3-2 blocks of both conditions', () {
+    for (var number = 1; number <= 20; number++) {
+      final plan = StudyPlan(
+        participantNumber: number,
+        phase: StudyPhase.practice,
+      );
+      expect(plan.entries.length, studyPracticeTrials);
+      expect(plan.entries.where((e) => e.block == 1).length, 3);
+      expect(plan.entries.where((e) => e.block == 2).length, 2);
+      expect(plan.entries.map((e) => e.condition).toSet().length, 2);
+      expect(plan.entries.map((e) => e.phraseId).toSet().length, 5);
+    }
+  });
+
   test(
-    'measurement is gated by ten completed practice messages, including both conditions',
+    'measurement is gated by five completed practice messages, including both conditions',
     () async {
       expect(
         await session.configureStudy(
@@ -199,15 +219,15 @@ void main() {
         isFalse,
       );
       await completePractice();
-      expect(store.saved[7]!.practiceCompleted, 10);
+      expect(store.saved[7]!.practiceCompleted, studyPracticeTrials);
       final practice = telemetry.events
           .where((e) => e.type == 'trial_end')
           .toList();
-      expect(practice.length, 10);
+      expect(practice.length, studyPracticeTrials);
       expect(practice.every((e) => e.data['practice'] == true), isTrue);
       expect(
         practice.where((e) => e.data['condition'] == 'with_prediction').length,
-        5,
+        isIn([2, 3]),
       );
       expect(
         await session.configureStudy(
@@ -285,7 +305,7 @@ void main() {
   );
 
   test(
-    'complete S2 and S3 retain forty distinct measured trials across logins',
+    'complete S2 and S3 retain twenty distinct measured trials across logins',
     () async {
       await completePractice();
       for (final phase in [StudyPhase.s2, StudyPhase.s3]) {
@@ -296,7 +316,7 @@ void main() {
         final dwell = session.dwellEnabled;
         session.setDwellEnabled(!dwell);
         expect(session.dwellEnabled, dwell);
-        for (var i = 0; i < 20; i++) {
+        for (var i = 0; i < studySessionTrials; i++) {
           await completeMessage();
         }
         expect(session.studyEntry, isNull);
@@ -307,11 +327,11 @@ void main() {
       final measured = telemetry.events
           .where((e) => e.type == 'trial_end' && e.data['practice'] == false)
           .toList();
-      expect(measured.length, 40);
-      expect(measured.map((e) => e.data['phrase_id']).toSet().length, 40);
-      expect(measured.map((e) => e.data['trial_id']).toSet().length, 40);
-      expect(session.studyProgress!.s2Completed, 20);
-      expect(session.studyProgress!.s3Completed, 20);
+      expect(measured.length, 20);
+      expect(measured.map((e) => e.data['phrase_id']).toSet().length, 20);
+      expect(measured.map((e) => e.data['trial_id']).toSet().length, 20);
+      expect(session.studyProgress!.s2Completed, studySessionTrials);
+      expect(session.studyProgress!.s3Completed, studySessionTrials);
     },
   );
 

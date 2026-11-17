@@ -154,7 +154,7 @@ class _StudySetupDialogState extends State<_StudySetupDialog> {
     );
     _phase =
         widget.session.studyPlan?.phase ??
-        (saved?.s2Completed == 20
+        (saved?.s2Completed == studySessionTrials
             ? StudyPhase.s3
             : saved?.readyToMeasure == true
             ? StudyPhase.s2
@@ -211,7 +211,7 @@ class _StudySetupDialogState extends State<_StudySetupDialog> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Práctica completada: ${progress?.practiceCompleted ?? 0}/10 mensajes. S2 y S3: 20 frases por sesión, en bloques alternados de cinco.',
+                'Práctica completada: ${progress?.practiceCompleted ?? 0}/$studyPracticeTrials mensajes. S2 y S3: $studySessionTrials frases por sesión, en bloques alternados de 3-2-2-3.',
               ),
               const SizedBox(height: 8),
               const Text(
