@@ -176,7 +176,7 @@ void main() {
         participantNumber: 2,
         phase: StudyPhase.practice,
       );
-      for (var i = 0; i < 4; i++) {
+      for (var i = 0; i < 2; i++) {
         await session.startTrial();
         await session.type('MENSAJE');
         await session.finishTrial();

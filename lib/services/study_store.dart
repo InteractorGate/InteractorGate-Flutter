@@ -17,9 +17,12 @@ class StudyStore {
         await _storage.write(key: _key(participantId), value: value);
       }
     }
-    return value == null
-        ? null
-        : StudyProgress.fromJson(jsonDecode(value) as Map<String, dynamic>);
+    if (value == null) return null;
+    final json = jsonDecode(value) as Map<String, dynamic>;
+    // El avance de un banco anterior (otro número de frases) no se migra:
+    // el participante empieza el protocolo vigente desde la práctica.
+    if (json['bank_version'] != studyBankVersion) return null;
+    return StudyProgress.fromJson(json);
   }
 
   Future<void> save(int participantId, StudyProgress progress) => _storage

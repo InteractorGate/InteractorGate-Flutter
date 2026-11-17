@@ -19,7 +19,19 @@ enum StudyCondition {
 }
 
 // Banco provisional de piloto: revisar equivalencia antes del estudio real.
-const studyBankVersion = 'pilot-v1';
+// pilot-v2: protocolo reducido a la mitad (práctica 5, S2 10 y S3 10).
+const studyBankVersion = 'pilot-v2';
+
+/// Mensajes de práctica: 3 en la primera condición y 2 en la segunda.
+const studyPracticeTrials = 5;
+
+/// Frases por sesión de medición (S2 o S3): 5 por condición.
+const studySessionTrials = 10;
+
+/// Tamaño de los bloques alternados. Práctica: 3-2. Medición: 3-2-2-3, de modo
+/// que cada condición suma 5 frases por sesión y la alternancia se mantiene.
+const studyPracticeBlocks = [3, 2];
+const studySessionBlocks = [3, 2, 2, 3];
 const studyListA = [
   'quiero tomar agua',
   'necesito agua tibia',
@@ -118,20 +130,28 @@ class StudyPlan {
         ..shuffle(Random(participantNumber * 1009 + (list == 'A' ? 17 : 31)));
     }
     final result = <StudyEntry>[];
-    final blockCount = phase == StudyPhase.practice ? 2 : 4;
-    for (var block = 0; block < blockCount; block++) {
+    final practice = phase == StudyPhase.practice;
+    final blocks = practice ? studyPracticeBlocks : studySessionBlocks;
+    // Frases ya usadas por lista en esta sesión; S3 continúa tras las de S2.
+    final used = {
+      'A': phase == StudyPhase.s3 ? studySessionTrials ~/ 2 : 0,
+      'B': phase == StudyPhase.s3 ? studySessionTrials ~/ 2 : 0,
+    };
+    var practiceUsed = 0;
+    for (var block = 0; block < blocks.length; block++) {
       final withPrediction = block.isEven == firstWithPrediction;
       final condition = withPrediction
           ? StudyCondition.withPrediction
           : StudyCondition.withoutPrediction;
       final list = withPrediction == (listWithPrediction == 'A') ? 'A' : 'B';
-      for (var position = 0; position < 5; position++) {
-        final practice = phase == StudyPhase.practice;
-        final index = practice
-            ? (withPrediction ? 5 : 0) + position
-            : lists[list]![(phase == StudyPhase.s3 ? 10 : 0) +
-                  (block ~/ 2) * 5 +
-                  position];
+      for (var position = 0; position < blocks[block]; position++) {
+        final int index;
+        if (practice) {
+          index = practiceUsed++;
+        } else {
+          index = lists[list]![used[list]!];
+          used[list] = used[list]! + 1;
+        }
         result.add(
           StudyEntry(
             phraseId: practice ? 'P${index + 1}' : '$list${index + 1}',
@@ -168,7 +188,7 @@ class StudyProgress {
   final int practiceCompleted;
   final int s2Completed;
   final int s3Completed;
-  bool get readyToMeasure => practiceCompleted >= 10;
+  bool get readyToMeasure => practiceCompleted >= studyPracticeTrials;
 
   int completed(StudyPhase phase) => switch (phase) {
     StudyPhase.practice => practiceCompleted,
@@ -203,15 +223,15 @@ class StudyProgress {
         number > 999 ||
         practice is! int ||
         practice < 0 ||
-        practice > 10 ||
+        practice > studyPracticeTrials ||
         s2 is! int ||
         s2 < 0 ||
-        s2 > 20 ||
+        s2 > studySessionTrials ||
         s3 is! int ||
         s3 < 0 ||
-        s3 > 20 ||
-        (practice < 10 && (s2 > 0 || s3 > 0)) ||
-        (s2 < 20 && s3 > 0)) {
+        s3 > studySessionTrials ||
+        (practice < studyPracticeTrials && (s2 > 0 || s3 > 0)) ||
+        (s2 < studySessionTrials && s3 > 0)) {
       throw const FormatException('El progreso de E2 no es válido.');
     }
     return StudyProgress(
