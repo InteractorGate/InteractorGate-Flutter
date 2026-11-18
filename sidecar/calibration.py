@@ -18,6 +18,7 @@ import numpy as np
 
 import config
 from eye_tracker import EyeTracker, feature_vector
+from positioning import run_positioning
 
 # Rejilla 4x4 en rango AMPLIO: mientras mas se mueven los ojos entre puntos,
 # mas fuerte la senal (sobre todo en vertical). La zona central de trabajo se
@@ -156,8 +157,12 @@ def run_calibration():
             cap.read()
         tracker = EyeTracker()
         _fullscreen_window()
+        # Vista de posicion: guia la distancia, el centrado, la cabeza y la luz
+        # antes de mostrar los puntos.
+        position, ts = run_positioning(cap, tracker, 0, WINDOW)
+        print(f"Posicion: {position}")
         print("Calibracion: mira cada punto rojo hasta que cambie.")
-        feats, targets, ts = _collect(cap, tracker, CALIB_POINTS, 0)
+        feats, targets, ts = _collect(cap, tracker, CALIB_POINTS, ts)
         if len(feats) < 40:
             print(f"ERROR: muy pocas muestras ({len(feats)}). Rostro no detectado?")
             return None
@@ -174,7 +179,7 @@ def run_calibration():
 
     # El ajuste ya es valido: guardarlo antes de verificar, para no perderlo
     # si la verificacion no reune muestras suficientes.
-    save_calibration(mapper)
+    save_calibration(mapper, position)
 
     if len(vfeats) < 5:
         print(f"Muestras calibracion: {len(feats)} | verificacion: {len(vfeats)}")
@@ -199,10 +204,12 @@ def run_calibration():
     return mapper
 
 
-def save_calibration(mapper):
+def save_calibration(mapper, position=None):
     data = {"gaze": mapper.to_dict(),
             "blink_threshold": config.BLINK_THRESHOLD,
             "screen": [config.SCREEN_WIDTH, config.SCREEN_HEIGHT]}
+    if position is not None:
+        data["position"] = position
     target = Path(config.CALIB_FILE)
     temporary = target.with_name(f".{target.name}.{time.time_ns()}.tmp")
     try:

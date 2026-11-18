@@ -19,6 +19,7 @@ class GazeStartupTests(unittest.TestCase):
         with patch('calibration.config.open_camera', return_value=cap), \
                 patch('calibration.EyeTracker', return_value=tracker), \
                 patch('calibration._fullscreen_window'), \
+                patch('calibration.run_positioning', return_value=({}, 0)), \
                 patch('calibration._collect', side_effect=InterruptedError), \
                 patch('calibration.cv2.destroyAllWindows'), \
                 patch('calibration.save_calibration') as save:
