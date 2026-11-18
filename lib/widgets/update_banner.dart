@@ -116,17 +116,25 @@ class _UpdateBannerState extends State<UpdateBanner> {
               LinearProgressIndicator(value: _progress),
             ],
             const SizedBox(height: 12),
+            // Expanded: el tema de la app da a los botones ancho completo.
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton(
-                  onPressed: busy ? null : () => setState(() => _dismissed = true),
-                  child: const Text('Ahora no'),
+                Expanded(
+                  child: TextButton(
+                    onPressed: busy
+                        ? null
+                        : () => setState(() => _dismissed = true),
+                    child: const Text('Ahora no'),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: busy ? null : _update,
-                  child: Text(_stage == _Stage.error ? 'Reintentar' : 'Actualizar'),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: busy ? null : _update,
+                    child: Text(
+                      _stage == _Stage.error ? 'Reintentar' : 'Actualizar',
+                    ),
+                  ),
                 ),
               ],
             ),

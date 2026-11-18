@@ -119,6 +119,16 @@ class UpdateService {
   }) async {
     final dir = into ?? Directory('${Directory.systemTemp.path}\\InteractorGate-update');
     await dir.create(recursive: true);
+    // Instaladores de actualizaciones anteriores ya no sirven.
+    await for (final old in dir.list()) {
+      if (old is File && old.path.endsWith('.exe')) {
+        try {
+          await old.delete();
+        } catch (_) {
+          /* En uso o bloqueado: se intentará la próxima vez. */
+        }
+      }
+    }
     final file = File('${dir.path}\\InteractorGate-Setup-${info.displayVersion}.exe');
     final res = await _client.send(http.Request('GET', info.url));
     if (res.statusCode != 200) {

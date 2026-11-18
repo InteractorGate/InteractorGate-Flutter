@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:interactor_gate/config/app_theme.dart';
 import 'package:interactor_gate/services/update_service.dart';
 import 'package:interactor_gate/widgets/update_banner.dart';
 
@@ -134,9 +135,14 @@ void main() {
       currentVersion: '1.2.8+13',
     );
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: UpdateBanner(service: service))),
+      // Con el tema real: sus botones de ancho completo rompían la fila.
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: Scaffold(body: UpdateBanner(service: service)),
+      ),
     );
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
     expect(find.text('Hay una versión nueva (1.2.9)'), findsOneWidget);
     await tester.tap(find.text('Ahora no'));
     await tester.pump();
