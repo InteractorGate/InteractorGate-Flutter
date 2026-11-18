@@ -38,6 +38,8 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
+; Al actualizar desde la app (modo silencioso) se cierra la instancia abierta.
+CloseApplications=force
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
@@ -52,9 +54,16 @@ Source: "{#SourceDir}\gaze\_internal\msvcp140.dll"; DestDir: "{app}"; Flags: ign
 Source: "{#SourceDir}\gaze\_internal\vcruntime140.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\gaze\_internal\vcruntime140_1.dll"; DestDir: "{app}"; Flags: ignoreversion
 
+[InstallDelete]
+; El sidecar de una version anterior no debe mezclarse con el nuevo.
+Type: filesandordirs; Name: "{app}\gaze"
+
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Abrir {#MyAppName}"; Flags: nowait postinstall skipifsilent
+; Actualizacion automatica (instalador silencioso lanzado por la app): reabrirla
+; con el usuario original, no como administrador.
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait runasoriginaluser; Check: WizardSilent

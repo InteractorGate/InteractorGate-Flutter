@@ -25,7 +25,9 @@ jobs:
       - name: Leer version del pubspec
         id: ver
         shell: bash
-        run: echo "version=$(grep '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//; s/+.*//')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(grep '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//; s/+.*//')" >> "$GITHUB_OUTPUT"
+          echo "full=$(grep '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//' | tr -d '\r')" >> "$GITHUB_OUTPUT"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -63,7 +65,8 @@ jobs:
         run: python -m PyInstaller gaze_service.spec --noconfirm
 
       - name: Build Flutter Windows (release)
-        run: flutter build windows --release
+        # IG_APP_VERSION activa la busqueda de actualizaciones (x.y.z+n).
+        run: flutter build windows --release --dart-define=IG_APP_VERSION=${{ steps.ver.outputs.full }}
 
       - name: Integrar sidecar en el Release
         shell: pwsh

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/auth_controller.dart';
+import '../widgets/update_banner.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -55,6 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const UpdateBanner(),
                   const Icon(Icons.remove_red_eye_outlined, size: 72),
                   const SizedBox(height: 12),
                   Text(
