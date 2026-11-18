@@ -41,11 +41,26 @@ class EyeData:
     v_ratio: float             # iris en Y relativo a los parpados (0=arriba, 1=abajo)
 
 
+NOSE_TIP = 1
+
+
+@dataclass
+class FaceGeometry:
+    """Geometria del rostro en la imagen, para guiar la postura del usuario."""
+    eye_mid: tuple             # (x, y) normalizado del punto medio entre iris
+    ipd_px: float              # distancia entre centros de iris, en pixeles
+    roll_deg: float            # inclinacion de la linea de los ojos (grados)
+    yaw_ratio: float           # desvio horizontal de la nariz / distancia entre ojos
+    brightness: float          # brillo medio (0-255) del recuadro del rostro
+    frame_size: tuple          # (ancho, alto) del frame en pixeles
+
+
 @dataclass
 class FaceResult:
     right: EyeData
     left: EyeData
     pose_matrix: np.ndarray    # (4,4) transformacion facial, o None
+    geometry: FaceGeometry = None
 
 
 def head_angles(pose_matrix):
@@ -107,7 +122,30 @@ class EyeTracker:
         # El ojo izquierdo se voltea horizontalmente para igualar la orientacion
         # con la que se entreno (convencion tipo MPIIGaze: ambos como ojo derecho).
         left = self._eye(gray, lm, LEFT_EYE, LEFT_IRIS, LEFT_LID, w, h, flip=True)
-        return FaceResult(right=right, left=left, pose_matrix=pose)
+        return FaceResult(right=right, left=left, pose_matrix=pose,
+                          geometry=self._geometry(gray, lm, right, left, w, h))
+
+    @staticmethod
+    def _geometry(gray, lm, right, left, w, h):
+        rx, ry = right.iris[0] * w, right.iris[1] * h
+        lx, ly = left.iris[0] * w, left.iris[1] * h
+        ipd = math.hypot(lx - rx, ly - ry)
+        mid_x, mid_y = (rx + lx) / 2, (ry + ly) / 2
+        roll = math.degrees(math.atan2(ly - ry, lx - rx))
+        if roll > 90:          # el orden de los ojos en la imagen no importa
+            roll -= 180
+        elif roll < -90:
+            roll += 180
+        yaw_ratio = (lm[NOSE_TIP].x * w - mid_x) / max(ipd, 1e-6)
+        xs = [p.x * w for p in lm]
+        ys = [p.y * h for p in lm]
+        x0, x1 = int(max(0, min(xs))), int(min(w, max(xs)))
+        y0, y1 = int(max(0, min(ys))), int(min(h, max(ys)))
+        face = gray[y0:y1, x0:x1]
+        brightness = float(face.mean()) if face.size else 0.0
+        return FaceGeometry(eye_mid=(mid_x / w, mid_y / h), ipd_px=ipd,
+                            roll_deg=roll, yaw_ratio=yaw_ratio,
+                            brightness=brightness, frame_size=(w, h))
 
     def _eye(self, gray, lm, eye_idx, iris_idx, lid_idx, w, h, flip):
         xs = [lm[i].x * w for i in eye_idx]

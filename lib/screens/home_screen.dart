@@ -58,7 +58,11 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout),
-            onPressed: auth.busy ? null : () => auth.logout(),
+            onPressed: auth.busy
+                ? null
+                : () async {
+                    if (await confirmLogout(context)) auth.logout();
+                  },
           ),
         ],
       ),
@@ -100,12 +104,12 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ],
               ),
+            // HABLAR va a la izquierda del texto: lejos de "Cerrar sesión" y de
+            // los controles de la ventana, que están arriba a la derecha.
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: ComposedTextBar(text: session.text)),
                 if (speech != null) ...[
-                  const SizedBox(width: 12),
                   SizedBox(
                     width: 230,
                     height: 90,
@@ -117,7 +121,9 @@ class HomeScreen extends StatelessWidget {
                       onPressed: () => speech.toggle(session.text),
                     ),
                   ),
+                  const SizedBox(width: 12),
                 ],
+                Expanded(child: ComposedTextBar(text: session.text)),
               ],
             ),
             if (speech?.error != null)
@@ -174,6 +180,29 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Pide confirmación antes de cerrar sesión, para que un roce accidental con
+/// la mirada o el mouse no saque al participante del tablero.
+Future<bool> confirmLogout(BuildContext context) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('¿Cerrar sesión?'),
+      content: const Text('Se cerrará la sesión y se apagará la cámara.'),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Seguir en el tablero'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Cerrar sesión'),
+        ),
+      ],
+    ),
+  );
+  return confirmed == true;
 }
 
 class _GazeStatusChip extends StatelessWidget {

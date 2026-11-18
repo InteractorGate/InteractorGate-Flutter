@@ -107,7 +107,11 @@ class _GazeSetupScreenState extends State<GazeSetupScreen> {
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',
-            onPressed: auth.busy ? null : () => auth.logout(),
+            onPressed: auth.busy
+                ? null
+                : () async {
+                    if (await confirmLogout(context)) auth.logout();
+                  },
             icon: const Icon(Icons.logout),
           ),
         ],
@@ -127,8 +131,10 @@ class _GazeSetupScreenState extends State<GazeSetupScreen> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Colócate frente a la cámara. Al calibrar, sigue los puntos con la mirada. '
-                  'El seguimiento comenzará cuando aparezca el tablero.',
+                  'Colócate frente a la cámara. Primero verás tu imagen con un óvalo '
+                  'guía: ajusta la distancia (50 a 70 cm), el centrado, la cabeza y la '
+                  'luz hasta que todo esté en verde. Luego sigue los puntos con la '
+                  'mirada. El seguimiento comenzará cuando aparezca el tablero.',
                 ),
                 const SizedBox(height: 16),
                 if (_error != null) Text(_error!),
