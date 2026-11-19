@@ -1,0 +1,53 @@
+name: "CodeQL Security Scan"
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+  schedule:
+    - cron: '0 2 * * 1'                   # lunes a las 2am UTC
+
+jobs:
+  analyze:
+    # CodeQL no soporta Dart: se analizan el sidecar (Python) y los workflows.
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ python, actions ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
+          # Un repo privado sin Advanced Security no acepta la subida: el
+          # resultado queda como artefacto SARIF de la ejecucion.
+          upload: ${{ github.event.repository.private && 'never' || 'always' }}
+          output: sarif-results
+
+      - name: Guardar SARIF
+        if: github.event.repository.private
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-${{ matrix.language }}
+          path: sarif-results
