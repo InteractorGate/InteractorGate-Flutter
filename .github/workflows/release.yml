@@ -16,7 +16,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # La suite completa corre primero; solo se publica si pasa.
+  test:
+    uses: ./.github/workflows/tests.yml
+
+  # Una release publicada no se reescribe: si el tag de la version del
+  # pubspec ya existe (p. ej. un merge que solo toca CI), no se compila.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      exists: ${{ steps.tag.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Buscar el tag de la version
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="v$(grep '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//; s/+.*//' | tr -d '\r')"
+          if gh release view "$v" > /dev/null 2>&1; then
+            echo "La release $v ya existe; no se vuelve a publicar." >> "$GITHUB_STEP_SUMMARY"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-release:
+    needs: [test, version]
+    if: needs.version.outputs.exists != 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -41,12 +68,6 @@ jobs:
           flutter config --enable-windows-desktop
           flutter pub get --enforce-lockfile
 
-      - name: Analyze Flutter
-        run: flutter analyze --no-pub lib test
-
-      - name: Test Flutter
-        run: flutter test --no-pub
-
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -55,10 +76,6 @@ jobs:
       - name: Instalar deps del sidecar + PyInstaller
         working-directory: sidecar
         run: pip install -r requirements.txt -c constraints.txt pyinstaller==6.21.0
-
-      - name: Test instrumentos y analisis
-        working-directory: sidecar
-        run: python -m unittest discover -s tests -p "test_*.py" -v
 
       - name: Build sidecar (PyInstaller)
         working-directory: sidecar
